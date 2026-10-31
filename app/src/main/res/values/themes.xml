@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.HomeServices" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#F6F2EA</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>
