@@ -1,0 +1,9 @@
+node_modules
+.env
+.claude
+.cursor
+.agents
+.devin
+dist
+/generated/prisma
+.env.test
