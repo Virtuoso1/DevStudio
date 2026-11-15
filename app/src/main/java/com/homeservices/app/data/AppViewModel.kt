@@ -2,6 +2,7 @@ package com.homeservices.app.data
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.homeservices.app.data.repository.HomeServicesRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,8 +13,10 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
-/** In-memory state for bookings and chats. Swap for a repository + API when the backend is ready. */
-class AppViewModel : ViewModel() {
+/** AppViewModel integrated with HomeServicesRepository REST API. */
+class AppViewModel(
+    private val repository: HomeServicesRepository = HomeServicesRepository()
+) : ViewModel() {
 
     private val _bookings = MutableStateFlow<List<Booking>>(emptyList())
     val bookings: StateFlow<List<Booking>> = _bookings.asStateFlow()
@@ -29,9 +32,31 @@ class AppViewModel : ViewModel() {
         "Got it. I'll bring what I need for that. Anything else I should know before I arrive?",
     )
 
+    init {
+        loadBookings()
+    }
+
+    fun loadBookings() {
+        viewModelScope.launch {
+            val remoteBookings = repository.getBookings()
+            if (remoteBookings.isNotEmpty()) {
+                _bookings.value = remoteBookings
+            }
+        }
+    }
+
     fun book(pro: Pro, date: LocalDate, time: String, note: String): Booking {
         val booking = Booking(nextId++, pro, date, time, note.trim())
         _bookings.update { listOf(booking) + it }
+
+        viewModelScope.launch {
+            val created = repository.createBooking(pro, date, time, note)
+            if (created != null) {
+                _bookings.update { current ->
+                    current.map { if (it.id == booking.id) created else it }
+                }
+            }
+        }
         return booking
     }
 
@@ -50,10 +75,14 @@ class AppViewModel : ViewModel() {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
         append(proId, message(trimmed, fromMe = true))
+
         viewModelScope.launch {
-            delay(1400)
-            val theirCount = _chats.value[proId].orEmpty().count { !it.fromMe }
-            append(proId, message(replies[(theirCount - 1).coerceAtLeast(0) % replies.size], fromMe = false))
+            val sentMsg = repository.sendMessage(proId, trimmed)
+            if (sentMsg == null) {
+                delay(1400)
+                val theirCount = _chats.value[proId].orEmpty().count { !it.fromMe }
+                append(proId, message(replies[(theirCount - 1).coerceAtLeast(0) % replies.size], fromMe = false))
+            }
         }
     }
 

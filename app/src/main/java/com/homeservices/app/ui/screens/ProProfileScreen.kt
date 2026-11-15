@@ -27,12 +27,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Chat
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -275,6 +277,13 @@ private fun BookingSheet(
                     onValueChange = { note = it },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Briefly describe the issue (optional)", color = Muted) },
+                    trailingIcon = {
+                        if (note.isNotEmpty()) {
+                            IconButton(onClick = { note = "" }) {
+                                Icon(Icons.Rounded.Close, contentDescription = "Clear text")
+                            }
+                        }
+                    },
                     minLines = 3,
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(

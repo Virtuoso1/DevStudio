@@ -37,6 +37,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.homeservices.app.data.Pro
 import com.homeservices.app.data.ProData
@@ -64,6 +68,7 @@ fun HomeScreen(
     onTrade: (Trade) -> Unit,
     onPro: (Pro) -> Unit,
 ) {
+    val focusManager = LocalFocusManager.current
     var query by rememberSaveable { mutableStateOf("") }
     val results = remember(query) { ProData.search(query) }
 
@@ -85,17 +90,22 @@ fun HomeScreen(
         item {
             OutlinedTextField(
                 value = query,
-                onValueChange = { query = it },
+                onValueChange = { query = it.replace("\n", " ") },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Search a service or professional", color = Muted) },
                 leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, tint = Muted) },
                 trailingIcon = {
                     if (query.isNotEmpty()) {
-                        IconButton(onClick = { query = "" }) {
+                        IconButton(onClick = {
+                            query = ""
+                            focusManager.clearFocus()
+                        }) {
                             Icon(Icons.Rounded.Close, contentDescription = "Clear search")
                         }
                     }
                 },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
