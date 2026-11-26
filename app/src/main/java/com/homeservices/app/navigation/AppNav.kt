@@ -67,6 +67,8 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
 
     val bookings by vm.bookings.collectAsStateWithLifecycle()
     val chats by vm.chats.collectAsStateWithLifecycle()
+    val diagnosis by vm.diagnosis.collectAsStateWithLifecycle()
+    val diagnosing by vm.diagnosing.collectAsStateWithLifecycle()
 
     fun selectTab(target: String) {
         nav.navigate(target) {
@@ -160,6 +162,10 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
                 composable(Routes.HOME) {
                     HomeScreen(
                         userName = USER_NAME,
+                        diagnosing = diagnosing,
+                        diagnosis = diagnosis,
+                        onSearchSubmit = vm::diagnose,
+                        onClearDiagnosis = vm::clearDiagnosis,
                         onTrade = { nav.navigate("trade/${it.name}") },
                         onPro = { nav.navigate("pro/${it.id}") },
                     )

@@ -75,6 +75,28 @@ data class SendMessageRequest(
     @SerializedName("body") val body: String
 )
 
+// --- AI engine (trade + price diagnosis) ---
+
+data class DiagnoseRequest(
+    @SerializedName("text") val text: String
+)
+
+data class DiagnosePriceDto(
+    @SerializedName("currency") val currency: String,
+    @SerializedName("low") val low: Int,
+    @SerializedName("mid") val mid: Int,
+    @SerializedName("high") val high: Int
+)
+
+data class DiagnoseResponse(
+    @SerializedName("status") val status: String, // "ok" or "unknown"
+    @SerializedName("trade") val trade: String? = null,
+    @SerializedName("group") val group: String? = null,
+    @SerializedName("confidence") val confidence: Double,
+    @SerializedName("price") val price: DiagnosePriceDto? = null,
+    @SerializedName("note") val note: String? = null
+)
+
 // --- Auth ---
 
 data class LoginRequest(

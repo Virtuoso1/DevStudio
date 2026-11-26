@@ -24,6 +24,36 @@ class AppViewModel(
     private val _chats = MutableStateFlow<Map<String, List<ChatMessage>>>(emptyMap())
     val chats: StateFlow<Map<String, List<ChatMessage>>> = _chats.asStateFlow()
 
+    private val _diagnosis = MutableStateFlow<DiagnoseResult?>(null)
+    val diagnosis: StateFlow<DiagnoseResult?> = _diagnosis.asStateFlow()
+
+    private val _diagnosing = MutableStateFlow(false)
+    val diagnosing: StateFlow<Boolean> = _diagnosing.asStateFlow()
+
+    private var diagnoseJob: kotlinx.coroutines.Job? = null
+
+    /** Called when the user submits the Home search bar. Cancels any diagnosis still in flight. */
+    fun diagnose(text: String) {
+        diagnoseJob?.cancel()
+        if (text.isBlank()) {
+            _diagnosis.value = null
+            _diagnosing.value = false
+            return
+        }
+        diagnoseJob = viewModelScope.launch {
+            _diagnosing.value = true
+            _diagnosis.value = repository.diagnose(text)
+            _diagnosing.value = false
+        }
+    }
+
+    /** Called when the search box is cleared, or the user picks a trade tile from the fallback. */
+    fun clearDiagnosis() {
+        diagnoseJob?.cancel()
+        _diagnosis.value = null
+        _diagnosing.value = false
+    }
+
     private var nextId = 1L
     private val clock = DateTimeFormatter.ofPattern("HH:mm")
     private val replies = listOf(

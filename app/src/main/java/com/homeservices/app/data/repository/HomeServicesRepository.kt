@@ -2,8 +2,11 @@ package com.homeservices.app.data.repository
 
 import com.homeservices.app.data.*
 import com.homeservices.app.data.api.ApiService
+import com.homeservices.app.data.api.EngineApiService
+import com.homeservices.app.data.api.EngineNetworkModule
 import com.homeservices.app.data.api.NetworkModule
 import com.homeservices.app.data.api.dto.CreateBookingRequest
+import com.homeservices.app.data.api.dto.DiagnoseRequest
 import com.homeservices.app.data.api.dto.ProviderDto
 import com.homeservices.app.data.api.dto.SendMessageRequest
 import com.homeservices.app.data.api.dto.StartConversationRequest
@@ -12,9 +15,38 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 class HomeServicesRepository(
-    private val api: ApiService = NetworkModule.apiService
+    private val api: ApiService = NetworkModule.apiService,
+    private val engineApi: EngineApiService = EngineNetworkModule.apiService,
 ) {
     private var authToken: String? = null
+
+    /**
+     * Calls the AI engine's /diagnose endpoint with a free-text phrase (English or Swahili).
+     * Recognized -> trade + estimated KES price range. Unknown (low confidence) or the engine
+     * being unreachable both tell the caller to fall back to the trade tiles.
+     */
+    suspend fun diagnose(text: String): DiagnoseResult {
+        return try {
+            val res = engineApi.diagnose(DiagnoseRequest(text))
+            val price = res.price
+            val trade = res.trade?.let(Trade::fromEngineString)
+            if (res.status == "ok" && trade != null && price != null) {
+                DiagnoseResult.Recognized(
+                    trade = trade,
+                    confidence = res.confidence,
+                    priceLow = price.low,
+                    priceMid = price.mid,
+                    priceHigh = price.high,
+                    currency = price.currency,
+                    note = res.note.orEmpty(),
+                )
+            } else {
+                DiagnoseResult.Unknown(res.confidence)
+            }
+        } catch (e: Exception) {
+            DiagnoseResult.Failed
+        }
+    }
 
     fun setAuthToken(token: String) {
         authToken = "Bearer $token"

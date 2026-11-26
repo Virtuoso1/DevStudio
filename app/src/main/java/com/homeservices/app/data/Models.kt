@@ -26,7 +26,32 @@ enum class Trade(
 ) {
     ELECTRICIAN("Electrician", "Electrician", "Electricians", ElectricRed, ElectricRedSoft, Icons.Rounded.ElectricBolt),
     PLUMBER("Plumber", "Plumber", "Plumbers", PlumberBlue, PlumberBlueSoft, Icons.Rounded.Plumbing),
-    APPLIANCE("Appliance technician", "Appliance", "Appliance techs", ApplianceOrange, ApplianceOrangeSoft, Icons.Rounded.Build),
+    APPLIANCE("Appliance technician", "Appliance", "Appliance techs", ApplianceOrange, ApplianceOrangeSoft, Icons.Rounded.Build);
+
+    companion object {
+        /** Maps the AI engine's lowercase trade string ("electrician", "plumber", "appliance") to a Trade. */
+        fun fromEngineString(value: String): Trade? =
+            entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
+    }
+}
+
+/** Result of calling the AI engine's /diagnose endpoint from HomeServicesRepository.diagnose(). */
+sealed class DiagnoseResult {
+    data class Recognized(
+        val trade: Trade,
+        val confidence: Double,
+        val priceLow: Int,
+        val priceMid: Int,
+        val priceHigh: Int,
+        val currency: String,
+        val note: String,
+    ) : DiagnoseResult()
+
+    /** Confidence was below the engine's threshold, or the trade name didn't match a known Trade. */
+    data class Unknown(val confidence: Double) : DiagnoseResult()
+
+    /** Engine unreachable (not running, wrong port, no network, etc). */
+    object Failed : DiagnoseResult()
 }
 
 data class Pro(

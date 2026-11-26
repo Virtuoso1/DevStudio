@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +43,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.homeservices.app.data.DiagnoseResult
 import com.homeservices.app.data.Pro
 import com.homeservices.app.data.ProData
 import com.homeservices.app.data.Trade
@@ -65,12 +67,26 @@ private fun greeting(): String {
 @Composable
 fun HomeScreen(
     userName: String,
+    diagnosing: Boolean,
+    diagnosis: DiagnoseResult?,
+    onSearchSubmit: (String) -> Unit,
+    onClearDiagnosis: () -> Unit,
     onTrade: (Trade) -> Unit,
     onPro: (Pro) -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
     var query by rememberSaveable { mutableStateOf("") }
-    val results = remember(query) { ProData.search(query) }
+
+    fun clear() {
+        query = ""
+        onClearDiagnosis()
+        focusManager.clearFocus()
+    }
+
+    fun submit() {
+        focusManager.clearFocus()
+        if (query.isBlank()) onClearDiagnosis() else onSearchSubmit(query)
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -92,20 +108,17 @@ fun HomeScreen(
                 value = query,
                 onValueChange = { query = it.replace("\n", " ") },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search a service or professional", color = Muted) },
+                placeholder = { Text("Describe the problem, in English or Kiswahili", color = Muted) },
                 leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, tint = Muted) },
                 trailingIcon = {
                     if (query.isNotEmpty()) {
-                        IconButton(onClick = {
-                            query = ""
-                            focusManager.clearFocus()
-                        }) {
+                        IconButton(onClick = { clear() }) {
                             Icon(Icons.Rounded.Close, contentDescription = "Clear search")
                         }
                     }
                 },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                keyboardActions = KeyboardActions(onSearch = { submit() }),
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -117,31 +130,94 @@ fun HomeScreen(
             )
         }
 
-        if (query.isBlank()) {
-            item { SectionTitle("Browse by trade") }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Trade.entries.forEach { trade ->
-                        TradeTile(trade, onClick = { onTrade(trade) }, modifier = Modifier.weight(1f))
+        when {
+            query.isBlank() -> {
+                item { SectionTitle("Browse by trade") }
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Trade.entries.forEach { trade ->
+                            TradeTile(trade, onClick = { onTrade(trade) }, modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+                item { SectionTitle("Book again near you") }
+                items(ProData.bookAgain, key = { it.id }) { pro ->
+                    ProCard(pro, onClick = { onPro(pro) })
+                }
+            }
+
+            diagnosing -> {
+                item {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        CircularProgressIndicator(color = Brand)
+                        Text(
+                            "Figuring out what you need…",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Muted,
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
                     }
                 }
             }
-            item { SectionTitle("Book again near you") }
-            items(ProData.bookAgain, key = { it.id }) { pro ->
-                ProCard(pro, onClick = { onPro(pro) })
+
+            diagnosis is DiagnoseResult.Recognized -> {
+                val trade = diagnosis.trade
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = trade.soft,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                "Sounds like a job for a ${trade.label.lowercase()}",
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                "Estimated ${diagnosis.currency} ${diagnosis.priceLow}–${diagnosis.priceHigh}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Muted,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                            if (diagnosis.note.isNotBlank()) {
+                                Text(
+                                    diagnosis.note,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Muted,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+                item { SectionTitle("${trade.plural} near you") }
+                items(ProData.byTrade(trade), key = { it.id }) { pro ->
+                    ProCard(pro, onClick = { onPro(pro) })
+                }
             }
-        } else if (results.isEmpty()) {
-            item {
-                EmptyState(
-                    icon = Icons.Rounded.SearchOff,
-                    title = "No matches",
-                    message = "Try a trade like \"plumber\" or a name.",
-                )
-            }
-        } else {
-            item { SectionTitle("${results.size} result${if (results.size == 1) "" else "s"}") }
-            items(results, key = { it.id }) { pro ->
-                ProCard(pro, onClick = { onPro(pro) })
+
+            // Unknown (low confidence) or Failed (engine unreachable): fall back to manual trade pick.
+            else -> {
+                item {
+                    EmptyState(
+                        icon = Icons.Rounded.SearchOff,
+                        title = "Not sure what that needs",
+                        message = if (diagnosis is DiagnoseResult.Failed)
+                            "Couldn't reach the diagnosis service — pick a trade instead."
+                        else
+                            "Pick the trade that's closest to the job.",
+                    )
+                }
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Trade.entries.forEach { trade ->
+                            TradeTile(trade, onClick = { onTrade(trade) }, modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
             }
         }
     }
