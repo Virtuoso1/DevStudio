@@ -7,3 +7,4 @@ node_modules
 dist
 /generated/prisma
 .env.test
+/prisma/dev.db

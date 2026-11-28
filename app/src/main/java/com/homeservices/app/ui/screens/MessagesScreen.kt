@@ -59,7 +59,7 @@ fun MessagesScreen(
                     Surface(
                         onClick = { onOpen(conversation) },
                         shape = RoundedCornerShape(16.dp),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.surface,
                         shadowElevation = 1.dp,
                         border = BorderStroke(1.dp, Outline),
                     ) {
@@ -71,13 +71,13 @@ fun MessagesScreen(
                                 Text(
                                     last?.let { (if (it.fromMe) "You: " else "") + it.text } ?: "No messages yet",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Muted,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
                             Spacer(Modifier.width(8.dp))
-                            Text(last?.time.orEmpty(), style = MaterialTheme.typography.bodySmall, color = Muted)
+                            Text(last?.time.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }

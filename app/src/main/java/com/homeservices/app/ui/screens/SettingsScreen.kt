@@ -11,14 +11,18 @@ import com.homeservices.app.ui.components.BackButton
 import com.homeservices.app.ui.theme.Cream
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onProfile: () -> Unit, onSignOut: () -> Unit) {
+fun SettingsScreen(darkMode: Boolean, onDarkModeChanged: (Boolean) -> Unit, onBack: () -> Unit, onProfile: () -> Unit, onSignOut: () -> Unit) {
     Column(
-        Modifier.fillMaxSize().background(Cream).padding(20.dp),
+        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             BackButton(onClick = onBack)
             Text("Settings", style = MaterialTheme.typography.headlineMedium)
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Dark theme", modifier = Modifier.weight(1f))
+            Switch(checked = darkMode, onCheckedChange = onDarkModeChanged)
         }
         OutlinedButton(onClick = onProfile, modifier = Modifier.fillMaxWidth()) { Text("My profile") }
         OutlinedButton(onClick = onSignOut, modifier = Modifier.fillMaxWidth()) { Text("Sign out") }

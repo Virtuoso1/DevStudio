@@ -18,6 +18,14 @@ import java.io.IOException
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = HomeServicesRepository()
     private val preferences = application.getSharedPreferences("session", Context.MODE_PRIVATE)
+    private val _darkMode = MutableStateFlow(preferences.getBoolean("darkMode", false))
+    val darkMode = _darkMode.asStateFlow()
+
+    fun setDarkMode(enabled: Boolean) {
+        _darkMode.value = enabled
+        preferences.edit().putBoolean("darkMode", enabled).apply()
+    }
+
     private val _session = MutableStateFlow<AuthResponse?>(null)
     val session = _session.asStateFlow()
     private val _authBusy = MutableStateFlow(false)

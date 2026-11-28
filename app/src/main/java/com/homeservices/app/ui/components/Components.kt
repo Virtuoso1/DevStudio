@@ -73,7 +73,7 @@ fun ProCard(pro: Pro, onClick: () -> Unit, modifier: Modifier = Modifier) {
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 1.dp,
         border = BorderStroke(1.dp, Outline),
     ) {
@@ -94,7 +94,7 @@ fun ProCard(pro: Pro, onClick: () -> Unit, modifier: Modifier = Modifier) {
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(pro.name, style = MaterialTheme.typography.titleMedium)
-                    Text(pro.trade.label, style = MaterialTheme.typography.bodyMedium, color = Muted)
+                    Text(pro.trade.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 RatingBadge(pro.rating)
             }
@@ -107,7 +107,7 @@ fun BackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier.size(40.dp),
         shape = CircleShape,
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, Outline),
     ) {
         IconButton(onClick = onClick) {
@@ -154,7 +154,7 @@ fun EmptyState(
         Text(
             message,
             style = MaterialTheme.typography.bodyMedium,
-            color = Muted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
         if (action != null) {

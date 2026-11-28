@@ -91,7 +91,7 @@ fun BookingsScreen(
 private fun BookingCard(booking: Booking, isProvider: Boolean, onStatus: (String) -> Unit, onReview: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 1.dp,
         border = BorderStroke(1.dp, Outline),
     ) {
@@ -102,7 +102,7 @@ private fun BookingCard(booking: Booking, isProvider: Boolean, onStatus: (String
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(name, style = MaterialTheme.typography.titleMedium)
-                    Text(booking.trade.label, style = MaterialTheme.typography.bodyMedium, color = Muted)
+                    Text(booking.trade.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(
                     booking.status.lowercase().replaceFirstChar(Char::uppercase),
@@ -116,7 +116,7 @@ private fun BookingCard(booking: Booking, isProvider: Boolean, onStatus: (String
             }
             Text("${booking.date.pretty()} · ${booking.time}", style = MaterialTheme.typography.titleMedium)
             if (booking.note.isNotEmpty()) {
-                Text(booking.note, style = MaterialTheme.typography.bodyMedium, color = Muted)
+                Text(booking.note, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 if (booking.status in listOf("PENDING", "CONFIRMED")) {

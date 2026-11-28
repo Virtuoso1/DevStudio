@@ -93,7 +93,7 @@ fun HomeScreen(
     ) {
         item {
             Column {
-                Text(greeting(), style = MaterialTheme.typography.bodyMedium, color = Muted)
+                Text(greeting(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
                     "What needs fixing,\n$userName?",
                     style = MaterialTheme.typography.headlineLarge,
@@ -106,7 +106,7 @@ fun HomeScreen(
                 value = query,
                 onValueChange = { query = it.replace("\n", " "); onSearch(query.trim()) },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search by trade, name, or service", color = Muted) },
+                placeholder = { Text("Search by trade, name, or service", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, tint = Muted) },
                 trailingIcon = {
                     if (query.isNotEmpty()) {
@@ -120,8 +120,8 @@ fun HomeScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                     focusedBorderColor = Brand,
                     unfocusedBorderColor = Outline,
                 ),
@@ -169,7 +169,7 @@ private fun TradeTile(trade: Trade, onClick: () -> Unit, modifier: Modifier = Mo
         onClick = onClick,
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 1.dp,
         border = BorderStroke(1.dp, Outline),
     ) {

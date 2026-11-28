@@ -67,7 +67,7 @@ fun ChatScreen(
 
     Column(Modifier.fillMaxSize().imePadding()) {
         // Pinned provider header
-        Surface(color = Color.White, shadowElevation = 2.dp) {
+        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -80,7 +80,7 @@ fun ChatScreen(
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(conversation.name, style = MaterialTheme.typography.titleMedium)
-                    conversation.trade?.let { Text(it.label, style = MaterialTheme.typography.bodySmall, color = Muted) }
+                    conversation.trade?.let { Text(it.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
 
             }
@@ -95,7 +95,7 @@ fun ChatScreen(
             items(messages, key = { it.id }) { msg -> Bubble(msg, accent) }
         }
 
-        Surface(color = Color.White, shadowElevation = 8.dp) {
+        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 8.dp) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -108,14 +108,14 @@ fun ChatScreen(
                     onValueChange = { draft = it.take(1000) },
                     enabled = !sending,
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Describe the issue…", color = Muted) },
+                    placeholder = { Text("Describe the issue…", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     maxLines = 4,
                     shape = RoundedCornerShape(24.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = accent,
                         unfocusedBorderColor = Outline,
-                        focusedContainerColor = Color(0xFFF6F2EA),
-                        unfocusedContainerColor = Color(0xFFF6F2EA),
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     ),
                 )
                 IconButton(
@@ -162,20 +162,20 @@ private fun Bubble(msg: ChatMessage, accent: Color) {
                     bottomStart = if (mine) 18.dp else 4.dp,
                     bottomEnd = if (mine) 4.dp else 18.dp,
                 ),
-                color = if (mine) accent else Color.White,
+                color = if (mine) accent else MaterialTheme.colorScheme.surface,
                 border = if (mine) null else BorderStroke(1.dp, Outline),
             ) {
                 Text(
                     msg.text,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (mine) Color.White else Ink,
+                    color = if (mine) Color.White else MaterialTheme.colorScheme.onSurface,
                 )
             }
             Text(
                 msg.time,
                 style = MaterialTheme.typography.bodySmall,
-                color = Muted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 2.dp, start = 4.dp, end = 4.dp),
             )
         }

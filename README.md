@@ -2,7 +2,9 @@
 
 Android app for finding and booking electricians, plumbers, and appliance technicians. The app uses Kotlin and Jetpack Compose. The REST API uses Express, Prisma, and PostgreSQL.
 
-## Run locally on Windows
+## Get the project and run locally
+
+Already cloned? Run `git switch main` and `git pull --ff-only origin main`. For a new checkout, run `git clone https://github.com/Virtuoso1/DevStudio.git`.
 
 1. Start PostgreSQL and create a database named `homeservices` if it does not exist.
 2. From the project root, open PowerShell and run the backend setup. Copy `.env.example` only when there is no existing `.env`. Set `DATABASE_URL` to your PostgreSQL credentials and `JWT_SECRET` to a long random string.
@@ -17,10 +19,22 @@ Android app for finding and booking electricians, plumbers, and appliance techni
    npm.cmd run dev
    ```
 
+   On macOS or Linux, use this from the project root:
+
+   ```bash
+   cd backend
+   test -e .env || cp .env.example .env
+   # Edit .env before continuing.
+   npm ci
+   npx prisma migrate deploy
+   npm run seed
+   npm run dev
+   ```
+
    Seeding is optional and creates customer and provider demo accounts. Check [API health](http://localhost:3000/health) for `"database":"connected"`. Keep the API terminal open. [Swagger](http://localhost:3000/docs) lists the routes.
 
 3. Open the project root in Android Studio, install the Android 37 SDK platform specified in `app/build.gradle.kts`, and sync Gradle using JDK 17. Start an Android emulator with API 26 or higher. The emulator reaches the host API at `http://10.0.2.2:3000/`.
-4. Select the emulator and run the `app` configuration. To build from a separate PowerShell at the project root, run `.gradlew.bat :app:assembleDebug`. Set `ANDROID_HOME` to the SDK directory or let Android Studio create `local.properties`.
+4. Select the emulator and run the `app` configuration. To build from a separate PowerShell at the project root, run `.\gradlew.bat :app:assembleDebug`. On macOS or Linux, use `./gradlew :app:assembleDebug`. Set `ANDROID_HOME` to the SDK directory or let Android Studio create `local.properties`.
 
 ## Verify the main flows
 

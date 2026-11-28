@@ -66,6 +66,7 @@ private val Tabs = listOf(
 @Composable
 fun HomeServicesApp(vm: AppViewModel = viewModel()) {
     val session by vm.session.collectAsStateWithLifecycle()
+    val darkMode by vm.darkMode.collectAsStateWithLifecycle()
     val busy by vm.authBusy.collectAsStateWithLifecycle()
     val error by vm.authError.collectAsStateWithLifecycle()
     val current = session
@@ -73,14 +74,14 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
         AuthScreen(busy, error, vm::login, vm::register, vm::clearAuthError)
     } else {
         key(current.token) {
-            SignedInApp(current, vm::signOut, vm::expireSession)
+            SignedInApp(current, darkMode, vm::setDarkMode, vm::signOut, vm::expireSession)
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SignedInApp(session: AuthResponse, onSignOut: () -> Unit, onExpired: () -> Unit) {
+private fun SignedInApp(session: AuthResponse, darkMode: Boolean, onDarkModeChanged: (Boolean) -> Unit, onSignOut: () -> Unit, onExpired: () -> Unit) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
@@ -136,7 +137,7 @@ private fun SignedInApp(session: AuthResponse, onSignOut: () -> Unit, onExpired:
         }
     ) {
         Scaffold(
-            containerColor = Cream,
+            containerColor = MaterialTheme.colorScheme.background,
             snackbarHost = { SnackbarHost(snackbar) },
             topBar = {
                 if (showBar) {
@@ -145,21 +146,21 @@ private fun SignedInApp(session: AuthResponse, onSignOut: () -> Unit, onExpired:
                             Text(
                                 text = "HomeServices",
                                 fontWeight = FontWeight.Bold,
-                                color = Ink
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                         },
                         navigationIcon = {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                Icon(Icons.Rounded.Menu, contentDescription = "Open Navigation Menu", tint = Ink)
+                                Icon(Icons.Rounded.Menu, contentDescription = "Open Navigation Menu", tint = MaterialTheme.colorScheme.onBackground)
                             }
                         },
                         actions = {
                             IconButton(onClick = { nav.navigate(Routes.PROFILE) }) {
-                                Icon(Icons.Rounded.Person, contentDescription = "User Profile", tint = Ink)
+                                Icon(Icons.Rounded.Person, contentDescription = "User Profile", tint = MaterialTheme.colorScheme.onBackground)
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = Cream
+                            containerColor = MaterialTheme.colorScheme.background
                         )
                     )
                 }
@@ -168,7 +169,7 @@ private fun SignedInApp(session: AuthResponse, onSignOut: () -> Unit, onExpired:
                 if (showBar) {
                     Column {
                         HorizontalDivider(color = Outline)
-                        NavigationBar(containerColor = Color.White, tonalElevation = 0.dp) {
+                        NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                             Tabs.forEach { tab ->
                                 NavigationBarItem(
                                     selected = route == tab.route,
@@ -360,6 +361,8 @@ private fun SignedInApp(session: AuthResponse, onSignOut: () -> Unit, onExpired:
 
                 composable(Routes.SETTINGS) {
                     SettingsScreen(
+                        darkMode = darkMode,
+                        onDarkModeChanged = onDarkModeChanged,
                         onBack = { nav.popBackStack() },
                         onProfile = { nav.navigate(Routes.PROFILE) },
                         onSignOut = onSignOut,

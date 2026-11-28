@@ -42,7 +42,7 @@ fun AppDrawer(
 ) {
     ModalDrawerSheet(
         modifier = modifier.width(310.dp),
-        drawerContainerColor = Color.White,
+        drawerContainerColor = MaterialTheme.colorScheme.surface,
         drawerShape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp)
     ) {
         Column(
@@ -53,7 +53,7 @@ fun AppDrawer(
             // Profile Header Card
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Cream,
+                color = MaterialTheme.colorScheme.background,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
@@ -85,12 +85,12 @@ fun AppDrawer(
                             text = user.name,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Ink
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = user.email,
                             style = MaterialTheme.typography.bodySmall,
-                            color = Muted
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Surface(
@@ -115,7 +115,7 @@ fun AppDrawer(
             Text(
                 text = "MAIN NAVIGATION",
                 style = MaterialTheme.typography.labelMedium,
-                color = Muted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
             )
 
@@ -154,8 +154,8 @@ fun AppDrawer(
                         selectedContainerColor = Cream,
                         selectedIconColor = Brand,
                         selectedTextColor = Brand,
-                        unselectedIconColor = Ink,
-                        unselectedTextColor = Ink
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurface,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.padding(vertical = 2.dp)
@@ -169,7 +169,7 @@ fun AppDrawer(
             Text(
                 text = "BROWSE CATEGORIES",
                 style = MaterialTheme.typography.labelMedium,
-                color = Muted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
             )
 
@@ -186,7 +186,7 @@ fun AppDrawer(
                     colors = NavigationDrawerItemDefaults.colors(
                         selectedContainerColor = trade.soft,
                         selectedTextColor = trade.accent,
-                        unselectedTextColor = Ink
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.padding(vertical = 2.dp)
@@ -221,7 +221,7 @@ fun AppDrawer(
             Text(
                 text = "HomeServices App v1.0.0",
                 style = MaterialTheme.typography.labelSmall,
-                color = Muted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         }

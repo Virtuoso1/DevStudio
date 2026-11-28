@@ -98,7 +98,7 @@ fun ProProfileScreen(
 
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 1.dp,
                 border = BorderStroke(1.dp, Outline),
             ) {
@@ -128,7 +128,7 @@ fun ProProfileScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("About", style = MaterialTheme.typography.titleLarge)
-                Text(pro.bio, style = MaterialTheme.typography.bodyLarge, color = Ink.copy(alpha = 0.85f))
+                Text(pro.bio, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f))
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -136,7 +136,7 @@ fun ProProfileScreen(
                 if (reviews.isEmpty()) Text("No reviews yet")
                 reviews.forEach { review ->
                     Text("${review.customerName.orEmpty()} · ${review.rating}/5")
-                    review.comment?.takeIf { it.isNotBlank() }?.let { Text(it, color = Muted) }
+                    review.comment?.takeIf { it.isNotBlank() }?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
 
@@ -160,7 +160,7 @@ fun ProProfileScreen(
             }
         }
 
-        if (canBook) Surface(color = Color.White, shadowElevation = 8.dp) {
+        if (canBook) Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 8.dp) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -208,7 +208,7 @@ fun ProProfileScreen(
 private fun Stat(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, style = MaterialTheme.typography.titleLarge)
-        Text(label, style = MaterialTheme.typography.bodySmall, color = Muted)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -235,7 +235,7 @@ private fun BookingSheet(
     ModalBottomSheet(
         onDismissRequest = { if (!saving) onDismiss() },
         sheetState = sheetState,
-        containerColor = Cream,
+        containerColor = MaterialTheme.colorScheme.background,
     ) {
         val done = confirmed
         if (done == null) {
@@ -293,7 +293,7 @@ private fun BookingSheet(
                     value = note,
                     onValueChange = { note = it },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Describe the issue (at least 5 characters)", color = Muted) },
+                    placeholder = { Text("Describe the issue (at least 5 characters)", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     trailingIcon = {
                         if (note.isNotEmpty()) {
                             IconButton(onClick = { note = "" }) {
@@ -304,8 +304,8 @@ private fun BookingSheet(
                     minLines = 3,
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                         focusedBorderColor = pro.trade.accent,
                         unfocusedBorderColor = Outline,
                     ),
@@ -354,7 +354,7 @@ private fun BookingSheet(
                 Text(
                     "${pro.name} · ${done.date.pretty()} at ${done.time}",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Muted,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(12.dp))
@@ -364,7 +364,7 @@ private fun BookingSheet(
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = pro.trade.accent, contentColor = Color.White),
                 ) { Text("View bookings", style = MaterialTheme.typography.labelLarge) }
-                TextButton(onClick = onDismiss) { Text("Done", color = Ink) }
+                TextButton(onClick = onDismiss) { Text("Done") }
             }
         }
     }

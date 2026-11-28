@@ -49,7 +49,7 @@ fun TradeListScreen(
                             .clip(RoundedCornerShape(2.dp))
                             .background(trade.accent)
                     )
-                    Text("${pros.size} listed", style = MaterialTheme.typography.bodyMedium, color = Muted)
+                    Text("${pros.size} listed", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             items(pros, key = { it.id }) { pro ->
