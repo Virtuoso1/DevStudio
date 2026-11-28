@@ -1,9 +1,7 @@
 package com.homeservices.app.ui.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -18,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
@@ -41,23 +38,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.homeservices.app.data.ChatMessage
-import com.homeservices.app.data.Pro
+import com.homeservices.app.data.Conversation
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.homeservices.app.ui.components.Avatar
 import com.homeservices.app.ui.components.BackButton
-import com.homeservices.app.ui.components.RatingBadge
+
 import com.homeservices.app.ui.theme.Ink
 import com.homeservices.app.ui.theme.Muted
 import com.homeservices.app.ui.theme.Outline
 
 @Composable
 fun ChatScreen(
-    pro: Pro,
+    conversation: Conversation,
     messages: List<ChatMessage>,
     onBack: () -> Unit,
-    onSend: (String) -> Unit,
+    onSend: suspend (String) -> Boolean,
 ) {
     var draft by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    var sending by remember { mutableStateOf(false) }
+    val accent = conversation.trade?.accent ?: Ink
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
@@ -74,13 +76,13 @@ fun ChatScreen(
             ) {
                 BackButton(onClick = onBack)
                 Spacer(Modifier.width(12.dp))
-                Avatar(pro.initials, pro.trade, size = 40.dp)
+                conversation.trade?.let { Avatar(conversation.initials, it, size = 40.dp) }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(pro.name, style = MaterialTheme.typography.titleMedium)
-                    Text(pro.trade.label, style = MaterialTheme.typography.bodySmall, color = Muted)
+                    Text(conversation.name, style = MaterialTheme.typography.titleMedium)
+                    conversation.trade?.let { Text(it.label, style = MaterialTheme.typography.bodySmall, color = Muted) }
                 }
-                RatingBadge(pro.rating)
+
             }
         }
 
@@ -90,7 +92,7 @@ fun ChatScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(messages, key = { it.id }) { msg -> Bubble(msg, pro) }
+            items(messages, key = { it.id }) { msg -> Bubble(msg, accent) }
         }
 
         Surface(color = Color.White, shadowElevation = 8.dp) {
@@ -103,13 +105,14 @@ fun ChatScreen(
             ) {
                 OutlinedTextField(
                     value = draft,
-                    onValueChange = { draft = it },
+                    onValueChange = { draft = it.take(1000) },
+                    enabled = !sending,
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("Describe the issue…", color = Muted) },
                     maxLines = 4,
                     shape = RoundedCornerShape(24.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = pro.trade.accent,
+                        focusedBorderColor = accent,
                         unfocusedBorderColor = Outline,
                         focusedContainerColor = Color(0xFFF6F2EA),
                         unfocusedContainerColor = Color(0xFFF6F2EA),
@@ -117,13 +120,19 @@ fun ChatScreen(
                 )
                 IconButton(
                     onClick = {
-                        onSend(draft)
-                        draft = ""
+                        sending = true
+                        scope.launch {
+                            try {
+                                if (onSend(draft)) draft = ""
+                            } finally {
+                                sending = false
+                            }
+                        }
                     },
-                    enabled = draft.isNotBlank(),
+                    enabled = !sending && draft.isNotBlank(),
                     modifier = Modifier.size(48.dp),
                     colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = pro.trade.accent,
+                        containerColor = accent,
                         contentColor = Color.White,
                         disabledContainerColor = Outline,
                         disabledContentColor = Muted,
@@ -137,7 +146,7 @@ fun ChatScreen(
 }
 
 @Composable
-private fun Bubble(msg: ChatMessage, pro: Pro) {
+private fun Bubble(msg: ChatMessage, accent: Color) {
     val mine = msg.fromMe
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -153,7 +162,7 @@ private fun Bubble(msg: ChatMessage, pro: Pro) {
                     bottomStart = if (mine) 18.dp else 4.dp,
                     bottomEnd = if (mine) 4.dp else 18.dp,
                 ),
-                color = if (mine) pro.trade.accent else Color.White,
+                color = if (mine) accent else Color.White,
                 border = if (mine) null else BorderStroke(1.dp, Outline),
             ) {
                 Text(

@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.homeservices.app"
-    compileSdk = 34
+    compileSdkVersion("android-37.0")
 
     defaultConfig {
         applicationId = "com.homeservices.app"
@@ -47,6 +47,5 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
     implementation(libs.okhttp)
-    implementation(libs.okhttp.logging)
     debugImplementation(libs.androidx.ui.tooling)
 }

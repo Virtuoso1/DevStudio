@@ -25,6 +25,11 @@ export async function createReview(req: Request, res: Response) {
   if (booking.review) throw new AppError(409, "You already reviewed this booking");
 
   const review = await prisma.$transaction(async (tx) => {
+    // Keep concurrent reviews and the provider rating in the same update order.
+    await tx.$queryRaw`SELECT "id" FROM "Provider" WHERE "id" = ${booking.providerId} FOR UPDATE`;
+    if (await tx.review.findUnique({ where: { bookingId: id } })) {
+      throw new AppError(409, "You already reviewed this booking");
+    }
     const created = await tx.review.create({
       data: {
         bookingId: id,

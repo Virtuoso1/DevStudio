@@ -23,9 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.homeservices.app.data.ChatMessage
-import com.homeservices.app.data.Pro
-import com.homeservices.app.data.ProData
+import com.homeservices.app.data.Conversation
 import com.homeservices.app.ui.components.Avatar
 import com.homeservices.app.ui.components.EmptyState
 import com.homeservices.app.ui.theme.Muted
@@ -33,12 +31,9 @@ import com.homeservices.app.ui.theme.Outline
 
 @Composable
 fun MessagesScreen(
-    chats: Map<String, List<ChatMessage>>,
-    onOpen: (Pro) -> Unit,
+    conversations: List<Conversation>,
+    onOpen: (Conversation) -> Unit,
 ) {
-    val conversations = chats.entries.toList().reversed().mapNotNull { (id, msgs) ->
-        ProData.byId(id)?.let { Triple(it, msgs.last(), msgs.size) }
-    }
 
     Column(Modifier.fillMaxSize()) {
         Text(
@@ -59,21 +54,22 @@ fun MessagesScreen(
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(conversations, key = { it.first.id }) { (pro, last, _) ->
+                items(conversations, key = { it.id }) { conversation ->
+                    val last = conversation.last
                     Surface(
-                        onClick = { onOpen(pro) },
+                        onClick = { onOpen(conversation) },
                         shape = RoundedCornerShape(16.dp),
                         color = Color.White,
                         shadowElevation = 1.dp,
                         border = BorderStroke(1.dp, Outline),
                     ) {
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Avatar(pro.initials, pro.trade)
+                            conversation.trade?.let { Avatar(conversation.initials, it) }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(pro.name, style = MaterialTheme.typography.titleMedium)
+                                Text(conversation.name, style = MaterialTheme.typography.titleMedium)
                                 Text(
-                                    (if (last.fromMe) "You: " else "") + last.text,
+                                    last?.let { (if (it.fromMe) "You: " else "") + it.text } ?: "No messages yet",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Muted,
                                     maxLines = 1,
@@ -81,7 +77,7 @@ fun MessagesScreen(
                                 )
                             }
                             Spacer(Modifier.width(8.dp))
-                            Text(last.time, style = MaterialTheme.typography.bodySmall, color = Muted)
+                            Text(last?.time.orEmpty(), style = MaterialTheme.typography.bodySmall, color = Muted)
                         }
                     }
                 }

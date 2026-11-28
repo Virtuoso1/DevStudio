@@ -93,6 +93,6 @@ tests/               automated API tests
 ```
 
 ## Testing
-`npm test` runs 31 tests covering authentication, permissions, double-booking,
+`npm test` runs 32 tests covering authentication, permissions, double-booking,
 the booking status flow, review ratings and chat privacy. The tests run against a
 separate `homeservices_test` database and refuse to run against any other.

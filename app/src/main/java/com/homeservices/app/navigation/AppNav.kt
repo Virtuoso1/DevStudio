@@ -1,6 +1,10 @@
 package com.homeservices.app.navigation
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Alignment
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -25,15 +29,19 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.homeservices.app.data.AppViewModel
-import com.homeservices.app.data.ProData
+import com.homeservices.app.data.Conversation
+import com.homeservices.app.data.ServicesSession
+import com.homeservices.app.data.Pro
+import com.homeservices.app.data.ChatMessage
+import com.homeservices.app.data.api.dto.AuthResponse
+import com.homeservices.app.data.api.dto.ReviewDto
+import kotlinx.coroutines.delay
 import com.homeservices.app.data.Trade
 import com.homeservices.app.ui.components.AppDrawer
 import com.homeservices.app.ui.screens.*
 import com.homeservices.app.ui.theme.*
 import kotlinx.coroutines.launch
 
-/** Placeholder until sign-in exists. */
-private const val USER_NAME = "Kelvin"
 
 object Routes {
     const val HOME = "home"
@@ -57,6 +65,22 @@ private val Tabs = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeServicesApp(vm: AppViewModel = viewModel()) {
+    val session by vm.session.collectAsStateWithLifecycle()
+    val busy by vm.authBusy.collectAsStateWithLifecycle()
+    val error by vm.authError.collectAsStateWithLifecycle()
+    val current = session
+    if (current == null) {
+        AuthScreen(busy, error, vm::login, vm::register, vm::clearAuthError)
+    } else {
+        key(current.token) {
+            SignedInApp(current, vm::signOut, vm::expireSession)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SignedInApp(session: AuthResponse, onSignOut: () -> Unit, onExpired: () -> Unit) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
@@ -65,10 +89,20 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    val bookings by vm.bookings.collectAsStateWithLifecycle()
-    val chats by vm.chats.collectAsStateWithLifecycle()
-    val diagnosis by vm.diagnosis.collectAsStateWithLifecycle()
-    val diagnosing by vm.diagnosing.collectAsStateWithLifecycle()
+    val services = remember(session) { ServicesSession(session, scope, onExpired) }
+    val bookings by services.bookings.collectAsStateWithLifecycle()
+    val conversations by services.conversations.collectAsStateWithLifecycle()
+    val repeatProviders by services.bookAgain.collectAsStateWithLifecycle()
+    val error by services.error.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    var openedConversation by remember { mutableStateOf<Conversation?>(null) }
+
+    LaunchedEffect(error) {
+        error?.let {
+            snackbar.showSnackbar(it, withDismissAction = true)
+            services.clearError()
+        }
+    }
 
     fun selectTab(target: String) {
         nav.navigate(target) {
@@ -83,6 +117,8 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
         gesturesEnabled = showBar,
         drawerContent = {
             AppDrawer(
+                user = session.user,
+                onSignOut = onSignOut,
                 currentRoute = route,
                 onNavigate = { target ->
                     nav.navigate(target) {
@@ -101,6 +137,7 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
     ) {
         Scaffold(
             containerColor = Cream,
+            snackbarHost = { SnackbarHost(snackbar) },
             topBar = {
                 if (showBar) {
                     TopAppBar(
@@ -160,12 +197,28 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
                     .consumeWindowInsets(inner),
             ) {
                 composable(Routes.HOME) {
+                    var query by rememberSaveable { mutableStateOf("") }
+                    var results by remember { mutableStateOf<List<Pro>?>(null) }
+                    var searching by remember { mutableStateOf(false) }
+                    LaunchedEffect(Unit) { services.loadBookAgain() }
+                    LaunchedEffect(query) {
+                        results = null
+                        searching = query.isNotBlank()
+                        if (searching) {
+                            delay(250)
+                            val trade = Trade.entries.firstOrNull {
+                                query.equals(it.name, true) || query.equals(it.label, true) || query.equals(it.plural, true)
+                            }
+                            results = services.request { services.repository.providers(trade, query.takeIf { trade == null }) }
+                            searching = false
+                        }
+                    }
                     HomeScreen(
-                        userName = USER_NAME,
-                        diagnosing = diagnosing,
-                        diagnosis = diagnosis,
-                        onSearchSubmit = vm::diagnose,
-                        onClearDiagnosis = vm::clearDiagnosis,
+                        userName = session.user.name,
+                        repeatProviders = repeatProviders,
+                        searchResults = results,
+                        searching = searching,
+                        onSearch = { query = it },
                         onTrade = { nav.navigate("trade/${it.name}") },
                         onPro = { nav.navigate("pro/${it.id}") },
                     )
@@ -178,9 +231,16 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
                     val trade = entry.arguments?.getString("trade")
                         ?.let { name -> Trade.entries.firstOrNull { it.name == name } }
                     if (trade != null) {
-                        TradeListScreen(
+                        var providers by remember { mutableStateOf<List<Pro>?>(null) }
+                        LaunchedEffect(trade) {
+                            providers = services.request { services.repository.providers(trade) }.orEmpty()
+                        }
+                        val list = providers
+                        if (list == null) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                        } else TradeListScreen(
                             trade = trade,
-                            pros = ProData.byTrade(trade),
+                            pros = list,
                             onBack = { nav.popBackStack() },
                             onPro = { nav.navigate("pro/${it.id}") },
                         )
@@ -191,16 +251,40 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
                     Routes.PRO,
                     arguments = listOf(navArgument("id") { type = NavType.StringType }),
                 ) { entry ->
-                    val pro = entry.arguments?.getString("id")?.let(ProData::byId)
+                    val id = entry.arguments?.getString("id") ?: return@composable
+                    var provider by remember { mutableStateOf<Pro?>(null) }
+                    var reviews by remember { mutableStateOf<List<ReviewDto>>(emptyList()) }
+                    var loading by remember { mutableStateOf(true) }
+                    var openingChat by remember { mutableStateOf(false) }
+                    val screenScope = rememberCoroutineScope()
+                    LaunchedEffect(id) {
+                        provider = services.request { services.repository.provider(id) }
+                        loading = false
+                        if (provider != null) reviews = services.request { services.repository.reviews(id) }.orEmpty()
+                    }
+                    val pro = provider
                     if (pro != null) {
                         ProProfileScreen(
                             pro = pro,
+                            canBook = !services.isProvider,
+                            reviews = reviews,
                             onBack = { nav.popBackStack() },
                             onMessage = {
-                                vm.openChat(pro.id)
-                                nav.navigate("chat/${pro.id}")
+                                if (!openingChat) {
+                                    openingChat = true
+                                    screenScope.launch {
+                                        try {
+                                            services.startChat(pro)?.let {
+                                                openedConversation = it
+                                                nav.navigate("chat/${it.id}")
+                                            }
+                                        } finally {
+                                            openingChat = false
+                                        }
+                                    }
+                                }
                             },
-                            onConfirmBooking = { date, time, note -> vm.book(pro, date, time, note) },
+                            onConfirmBooking = { date, time, note -> services.book(pro, date, time, note) },
                             onViewBookings = {
                                 nav.navigate(Routes.BOOKINGS) {
                                     popUpTo(Routes.HOME)
@@ -208,6 +292,11 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
                                 }
                             },
                         )
+                    } else {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            if (loading) CircularProgressIndicator()
+                            else TextButton(onClick = { nav.popBackStack() }) { Text("Back to providers") }
+                        }
                     }
                 }
 
@@ -215,41 +304,72 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
                     Routes.CHAT,
                     arguments = listOf(navArgument("id") { type = NavType.StringType }),
                 ) { entry ->
-                    val pro = entry.arguments?.getString("id")?.let(ProData::byId)
-                    if (pro != null) {
-                        LaunchedEffect(pro.id) { vm.openChat(pro.id) }
+                    val id = entry.arguments?.getString("id") ?: return@composable
+                    val conversation = openedConversation?.takeIf { it.id == id }
+                        ?: conversations.firstOrNull { it.id == id }
+                    var messages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
+                    var loaded by remember { mutableStateOf(false) }
+                    LaunchedEffect(id) {
+                        if (conversation == null) services.loadConversations()
+                        var next = services.messages(id)
+                        loaded = true
+                        while (next != null) {
+                            messages = (messages + next).distinctBy { it.id }
+                            delay(3_000)
+                            next = services.messages(id)
+                        }
+                    }
+                    if (conversation != null) {
                         ChatScreen(
-                            pro = pro,
-                            messages = chats[pro.id].orEmpty(),
+                            conversation = conversation,
+                            messages = messages,
                             onBack = { nav.popBackStack() },
-                            onSend = { vm.send(pro.id, it) },
+                            onSend = { text ->
+                                val sent = services.send(id, text)
+                                if (sent != null) messages = (messages + sent).distinctBy { it.id }
+                                sent != null
+                            },
                         )
+                    } else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        if (!loaded) CircularProgressIndicator()
+                        else TextButton(onClick = { nav.popBackStack() }) { Text("Back to messages") }
                     }
                 }
 
                 composable(Routes.BOOKINGS) {
+                    LaunchedEffect(Unit) { services.loadBookings() }
                     BookingsScreen(
                         bookings = bookings,
-                        onCancel = vm::cancelBooking,
+                        isProvider = services.isProvider,
+                        onStatus = services::updateBooking,
+                        onReview = services::review,
                         onFindPro = { selectTab(Routes.HOME) },
                     )
                 }
 
                 composable(Routes.MESSAGES) {
+                    LaunchedEffect(Unit) { services.loadConversations() }
                     MessagesScreen(
-                        chats = chats,
-                        onOpen = { nav.navigate("chat/${it.id}") },
+                        conversations = conversations,
+                        onOpen = {
+                            openedConversation = it
+                            nav.navigate("chat/${it.id}")
+                        },
                     )
                 }
 
                 composable(Routes.SETTINGS) {
                     SettingsScreen(
-                        onBack = { nav.popBackStack() }
+                        onBack = { nav.popBackStack() },
+                        onProfile = { nav.navigate(Routes.PROFILE) },
+                        onSignOut = onSignOut,
                     )
                 }
 
                 composable(Routes.PROFILE) {
                     ProfileScreen(
+                        user = session.user,
+                        onSignOut = onSignOut,
                         onBack = { nav.popBackStack() }
                     )
                 }

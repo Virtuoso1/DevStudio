@@ -1,33 +1,37 @@
-# Home Services App (working title)
+# Home Services
 
-Android front end for the Home Services App: find, compare and book trusted local
-electricians, plumbers and appliance technicians. Built with Kotlin and Jetpack Compose.
+Android app for finding and booking electricians, plumbers, and appliance technicians. The app uses Kotlin and Jetpack Compose. The REST API uses Express, Prisma, and PostgreSQL.
 
-## Screens
-- **Home**: greeting, live search, browse by trade, "Book again near you"
-- **Trade list**: one consistent card pattern, colour accent per trade
-- **Profile**: rating, experience, bio, credentials, BOOK and Message
-- **Booking sheet**: pick a day and time, describe the issue, confirm
-- **Chat**: provider header pinned while you talk
-- **Bookings / Messages**: tabs in the bottom bar
+## Run locally on Windows
 
-## Run it
-1. Open this folder in Android Studio (Koala or newer) and let Gradle sync.
-2. Run on an emulator or device, Android 8.0 (API 26) or higher.
+1. Start PostgreSQL and create a database named `homeservices` if it does not exist.
+2. From the project root, open PowerShell and run the backend setup. Copy `.env.example` only when there is no existing `.env`. Set `DATABASE_URL` to your PostgreSQL credentials and `JWT_SECRET` to a long random string.
 
-## Where things live
-```
-app/src/main/java/com/homeservices/app/
-  data/        models, sample data (ProData), AppViewModel (in-memory bookings + chats)
-  navigation/  AppNav.kt (routes + bottom bar)
-  ui/theme/    colours, typography
-  ui/components/ shared composables (Avatar, ProCard, RatingBadge...)
-  ui/screens/  one file per screen
-```
+   ```powershell
+   cd backend
+   if (!(Test-Path .env)) { Copy-Item .env.example .env }
+   # Edit .env before continuing.
+   npm.cmd ci
+   npx.cmd prisma migrate deploy
+   npm.cmd run seed
+   npm.cmd run dev
+   ```
 
-## Connecting the backend later
-`ProData` and `AppViewModel` hold sample data in memory. Replace them with a repository
-that calls your API; the screens only read state and call the ViewModel functions.
+   Seeding is optional and creates customer and provider demo accounts. Check [API health](http://localhost:3000/health) for `"database":"connected"`. Keep the API terminal open. [Swagger](http://localhost:3000/docs) lists the routes.
 
-## Branching suggestion
-`main` stays runnable. Work on `feature/<name>` branches and open pull requests.
+3. Open the project root in Android Studio, install the Android 37 SDK platform specified in `app/build.gradle.kts`, and sync Gradle using JDK 17. Start an Android emulator with API 26 or higher. The emulator reaches the host API at `http://10.0.2.2:3000/`.
+4. Select the emulator and run the `app` configuration. To build from a separate PowerShell at the project root, run `.gradlew.bat :app:assembleDebug`. Set `ANDROID_HOME` to the SDK directory or let Android Studio create `local.properties`.
+
+## Verify the main flows
+
+- Sign in with `demo@homeservices.test` and `Password123`, or use **Create an account**.
+- Choose **Plumber**, open **Grace Wanjiku**, and request a booking for a future slot. Enter at least five characters describing the job. Open **Bookings** to check that the status is **Pending**.
+- Sign out from **My Profile**, then sign in as `grace@homeservices.test` with the same demo password. Open **Bookings**, confirm the request, then mark it completed.
+- Sign back in as the customer and leave a review. The provider profile shows saved reviews. Completed providers also appear under **Book again**.
+- From the provider profile, start a conversation as a customer. Sign in as the provider and open **Messages** to see or reply to it.
+
+The home search uses the Node API for trade, name, and service searches. The documented local flows use the Android app and the Node/PostgreSQL backend.
+
+## Backend tests
+
+Configure `backend/.env.test` with a separate PostgreSQL database named `homeservices_test` and a test JWT secret. From `backend`, run `npm.cmd run test:migrate` followed by `npm.cmd test`. The test suite clears records from the test database.

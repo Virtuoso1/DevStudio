@@ -23,7 +23,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,9 +45,12 @@ import com.homeservices.app.ui.theme.Success
 @Composable
 fun BookingsScreen(
     bookings: List<Booking>,
-    onCancel: (Long) -> Unit,
+    isProvider: Boolean,
+    onStatus: (String, String) -> Unit,
+    onReview: suspend (String, Int, String) -> Boolean,
     onFindPro: () -> Unit,
 ) {
+    var reviewBooking by remember { mutableStateOf<Booking?>(null) }
     Column(Modifier.fillMaxSize()) {
         Text(
             "Bookings",
@@ -70,14 +76,19 @@ fun BookingsScreen(
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(bookings, key = { it.id }) { b -> BookingCard(b, onCancel = { onCancel(b.id) }) }
+                items(bookings, key = { it.id }) { booking ->
+                    BookingCard(booking, isProvider, { onStatus(booking.id, it) }, { reviewBooking = booking })
+                }
             }
         }
+    }
+    reviewBooking?.let { booking ->
+        ReviewDialog({ reviewBooking = null }) { rating, comment -> onReview(booking.id, rating, comment) }
     }
 }
 
 @Composable
-private fun BookingCard(booking: Booking, onCancel: () -> Unit) {
+private fun BookingCard(booking: Booking, isProvider: Boolean, onStatus: (String) -> Unit, onReview: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = Color.White,
@@ -86,14 +97,15 @@ private fun BookingCard(booking: Booking, onCancel: () -> Unit) {
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Avatar(booking.pro.initials, booking.pro.trade)
+                val name = if (isProvider) booking.customerName else booking.providerName
+                Avatar(name.split(" ").mapNotNull { it.firstOrNull() }.take(2).joinToString("").uppercase(), booking.trade)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(booking.pro.name, style = MaterialTheme.typography.titleMedium)
-                    Text(booking.pro.trade.label, style = MaterialTheme.typography.bodyMedium, color = Muted)
+                    Text(name, style = MaterialTheme.typography.titleMedium)
+                    Text(booking.trade.label, style = MaterialTheme.typography.bodyMedium, color = Muted)
                 }
                 Text(
-                    "Confirmed",
+                    booking.status.lowercase().replaceFirstChar(Char::uppercase),
                     style = MaterialTheme.typography.labelMedium,
                     color = Success,
                     modifier = Modifier
@@ -107,8 +119,59 @@ private fun BookingCard(booking: Booking, onCancel: () -> Unit) {
                 Text(booking.note, style = MaterialTheme.typography.bodyMedium, color = Muted)
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onCancel) { Text("Cancel booking", color = ElectricRed) }
+                if (booking.status in listOf("PENDING", "CONFIRMED")) {
+                    TextButton(onClick = { onStatus("CANCELLED") }) { Text("Cancel", color = ElectricRed) }
+                }
+                if (isProvider && booking.status == "PENDING") {
+                    TextButton(onClick = { onStatus("CONFIRMED") }) { Text("Confirm") }
+                }
+                if (isProvider && booking.status == "CONFIRMED") {
+                    TextButton(onClick = { onStatus("COMPLETED") }) { Text("Complete") }
+                }
+                if (!isProvider && booking.status == "COMPLETED" && !booking.reviewed) {
+                    TextButton(onClick = onReview) { Text("Leave a review") }
+                }
             }
         }
     }
+}
+
+@Composable
+private fun ReviewDialog(onDismiss: () -> Unit, onReview: suspend (Int, String) -> Boolean) {
+    var rating by remember { mutableStateOf(5) }
+    var comment by remember { mutableStateOf("") }
+    var saving by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text("Review this job") },
+        text = {
+            Column {
+                Row {
+                    (1..5).forEach { value ->
+                        TextButton(onClick = { rating = value }, enabled = !saving, contentPadding = PaddingValues(4.dp)) {
+                            Text(if (rating == value) "★$value" else "$value")
+                        }
+                    }
+                }
+                OutlinedTextField(comment, { comment = it.take(500) }, label = { Text("Comment (optional)") }, enabled = !saving)
+                if (failed) Text("Your review could not be saved. Please try again.", color = ElectricRed)
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = !saving, onClick = {
+                saving = true
+                failed = false
+                scope.launch {
+                    try {
+                        if (onReview(rating, comment)) onDismiss() else failed = true
+                    } finally {
+                        saving = false
+                    }
+                }
+            }) { Text(if (saving) "Saving…" else "Submit review") }
+        },
+        dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text("Cancel") } },
+    )
 }

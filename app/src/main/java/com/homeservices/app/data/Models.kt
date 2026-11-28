@@ -28,30 +28,6 @@ enum class Trade(
     PLUMBER("Plumber", "Plumber", "Plumbers", PlumberBlue, PlumberBlueSoft, Icons.Rounded.Plumbing),
     APPLIANCE("Appliance technician", "Appliance", "Appliance techs", ApplianceOrange, ApplianceOrangeSoft, Icons.Rounded.Build);
 
-    companion object {
-        /** Maps the AI engine's lowercase trade string ("electrician", "plumber", "appliance") to a Trade. */
-        fun fromEngineString(value: String): Trade? =
-            entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
-    }
-}
-
-/** Result of calling the AI engine's /diagnose endpoint from HomeServicesRepository.diagnose(). */
-sealed class DiagnoseResult {
-    data class Recognized(
-        val trade: Trade,
-        val confidence: Double,
-        val priceLow: Int,
-        val priceMid: Int,
-        val priceHigh: Int,
-        val currency: String,
-        val note: String,
-    ) : DiagnoseResult()
-
-    /** Confidence was below the engine's threshold, or the trade name didn't match a known Trade. */
-    data class Unknown(val confidence: Double) : DiagnoseResult()
-
-    /** Engine unreachable (not running, wrong port, no network, etc). */
-    object Failed : DiagnoseResult()
 }
 
 data class Pro(
@@ -69,19 +45,32 @@ data class Pro(
 }
 
 data class Booking(
-    val id: Long,
-    val pro: Pro,
+    val id: String,
+    val providerName: String,
+    val trade: Trade,
+    val customerName: String,
     val date: LocalDate,
     val time: String,
     val note: String,
+    val status: String,
+    val reviewed: Boolean,
 )
 
 data class ChatMessage(
-    val id: Long,
+    val id: String,
     val text: String,
     val fromMe: Boolean,
     val time: String,
 )
+
+data class Conversation(
+    val id: String,
+    val name: String,
+    val trade: Trade?,
+    val last: ChatMessage?,
+) {
+    val initials: String get() = name.split(" ").mapNotNull { it.firstOrNull() }.take(2).joinToString("").uppercase()
+}
 
 fun LocalDate.pretty(): String =
     format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault()))

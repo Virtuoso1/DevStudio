@@ -50,7 +50,8 @@ data class BookingDto(
     @SerializedName("status") val status: String,
     @SerializedName("createdAt") val createdAt: String,
     @SerializedName("provider") val provider: BookingProviderDto,
-    @SerializedName("customer") val customer: BookingCustomerDto
+    @SerializedName("customer") val customer: BookingCustomerDto,
+    @SerializedName("review") val review: BookingReviewDto?
 )
 
 // --- Chat ---
@@ -65,7 +66,7 @@ data class StartConversationResponse(
 )
 
 data class MessageDto(
-    @SerializedName("id") val id: String,
+    @SerializedName("id") val id: String?,
     @SerializedName("body") val body: String,
     @SerializedName("senderId") val senderId: String,
     @SerializedName("createdAt") val createdAt: String
@@ -75,28 +76,6 @@ data class SendMessageRequest(
     @SerializedName("body") val body: String
 )
 
-// --- AI engine (trade + price diagnosis) ---
-
-data class DiagnoseRequest(
-    @SerializedName("text") val text: String
-)
-
-data class DiagnosePriceDto(
-    @SerializedName("currency") val currency: String,
-    @SerializedName("low") val low: Int,
-    @SerializedName("mid") val mid: Int,
-    @SerializedName("high") val high: Int
-)
-
-data class DiagnoseResponse(
-    @SerializedName("status") val status: String, // "ok" or "unknown"
-    @SerializedName("trade") val trade: String? = null,
-    @SerializedName("group") val group: String? = null,
-    @SerializedName("confidence") val confidence: Double,
-    @SerializedName("price") val price: DiagnosePriceDto? = null,
-    @SerializedName("note") val note: String? = null
-)
-
 // --- Auth ---
 
 data class LoginRequest(
@@ -104,6 +83,24 @@ data class LoginRequest(
     @SerializedName("password") val password: String
 )
 
-data class AuthResponse(
-    @SerializedName("token") val token: String
+data class AuthResponse(val token: String, val user: UserDto)
+
+data class UserDto(val id: String, val name: String, val email: String, val phone: String?, val role: String)
+data class UserResponse(val user: UserDto)
+
+data class RegisterRequest(
+    val name: String,
+    val email: String,
+    val password: String,
+    val role: String,
+    val trade: String?,
+    val bio: String?,
+    val yearsExperience: Int?,
 )
+
+data class BookingReviewDto(val id: String)
+data class ReviewDto(val id: String, val rating: Int, val comment: String?, val customerName: String?)
+data class StatusRequest(val status: String)
+data class ReviewRequest(val rating: Int, val comment: String)
+data class OtherPartyDto(val name: String, val trade: String?)
+data class ConversationDto(val id: String, val otherParty: OtherPartyDto, val lastMessage: MessageDto?)

@@ -16,7 +16,8 @@ let conversationId = "";
 
 beforeAll(async () => {
   // Safety guard: these tests wipe the database, so they must never touch real data.
-  if (!process.env.DATABASE_URL?.includes("homeservices_test")) {
+  const database = process.env.DATABASE_URL;
+  if (!database || new URL(database).pathname !== "/homeservices_test") {
     throw new Error("Refusing to run: DATABASE_URL is not the test database");
   }
   await prisma.message.deleteMany();
@@ -160,6 +161,15 @@ describe("bookings and reviews", () => {
       .set(auth(customerToken))
       .send({ ...payload(), date: "2020-01-01" });
     expect(res.status).toBe(400);
+  });
+
+  it("allows only one booking when two customers request the same slot concurrently", async () => {
+    const data = { ...payload(), date: futureDate(9) };
+    const results = await Promise.all(
+      [customerToken, otherToken].map((token) => request(app).post("/bookings").set(auth(token)).send(data)),
+    );
+    expect(results.map((result) => result.status).sort()).toEqual([201, 409]);
+    await prisma.booking.delete({ where: { id: results.find((result) => result.status === 201)!.body.id } });
   });
 
   it("creates a booking as PENDING", async () => {

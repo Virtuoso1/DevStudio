@@ -1,125 +1,88 @@
 package com.homeservices.app.data
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.homeservices.app.data.api.dto.AuthResponse
+import com.homeservices.app.data.api.dto.RegisterRequest
 import com.homeservices.app.data.repository.HomeServicesRepository
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
+import org.json.JSONObject
+import retrofit2.HttpException
+import java.io.IOException
 
-/** AppViewModel integrated with HomeServicesRepository REST API. */
-class AppViewModel(
-    private val repository: HomeServicesRepository = HomeServicesRepository()
-) : ViewModel() {
-
-    private val _bookings = MutableStateFlow<List<Booking>>(emptyList())
-    val bookings: StateFlow<List<Booking>> = _bookings.asStateFlow()
-
-    private val _chats = MutableStateFlow<Map<String, List<ChatMessage>>>(emptyMap())
-    val chats: StateFlow<Map<String, List<ChatMessage>>> = _chats.asStateFlow()
-
-    private val _diagnosis = MutableStateFlow<DiagnoseResult?>(null)
-    val diagnosis: StateFlow<DiagnoseResult?> = _diagnosis.asStateFlow()
-
-    private val _diagnosing = MutableStateFlow(false)
-    val diagnosing: StateFlow<Boolean> = _diagnosing.asStateFlow()
-
-    private var diagnoseJob: kotlinx.coroutines.Job? = null
-
-    /** Called when the user submits the Home search bar. Cancels any diagnosis still in flight. */
-    fun diagnose(text: String) {
-        diagnoseJob?.cancel()
-        if (text.isBlank()) {
-            _diagnosis.value = null
-            _diagnosing.value = false
-            return
-        }
-        diagnoseJob = viewModelScope.launch {
-            _diagnosing.value = true
-            _diagnosis.value = repository.diagnose(text)
-            _diagnosing.value = false
-        }
-    }
-
-    /** Called when the search box is cleared, or the user picks a trade tile from the fallback. */
-    fun clearDiagnosis() {
-        diagnoseJob?.cancel()
-        _diagnosis.value = null
-        _diagnosing.value = false
-    }
-
-    private var nextId = 1L
-    private val clock = DateTimeFormatter.ofPattern("HH:mm")
-    private val replies = listOf(
-        "Thanks for the details. I can come and take a look, which day suits you?",
-        "Sounds doable. Tap BOOK on my profile and pick a time slot that works for you.",
-        "Got it. I'll bring what I need for that. Anything else I should know before I arrive?",
-    )
+class AppViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = HomeServicesRepository()
+    private val preferences = application.getSharedPreferences("session", Context.MODE_PRIVATE)
+    private val _session = MutableStateFlow<AuthResponse?>(null)
+    val session = _session.asStateFlow()
+    private val _authBusy = MutableStateFlow(false)
+    val authBusy = _authBusy.asStateFlow()
+    private val _authError = MutableStateFlow<String?>(null)
+    val authError = _authError.asStateFlow()
 
     init {
-        loadBookings()
-    }
-
-    fun loadBookings() {
-        viewModelScope.launch {
-            val remoteBookings = repository.getBookings()
-            if (remoteBookings.isNotEmpty()) {
-                _bookings.value = remoteBookings
+        preferences.getString("token", null)?.let { token ->
+            authenticate {
+                AuthResponse(token, repository.me(token))
             }
         }
     }
 
-    fun book(pro: Pro, date: LocalDate, time: String, note: String): Booking {
-        val booking = Booking(nextId++, pro, date, time, note.trim())
-        _bookings.update { listOf(booking) + it }
+    fun login(email: String, password: String) =
+        authenticate { repository.login(email.trim(), password) }
 
+    fun register(request: RegisterRequest) = authenticate { repository.register(request) }
+
+    fun clearAuthError() { _authError.value = null }
+
+    fun signOut() {
+        preferences.edit().remove("token").apply()
+        _authError.value = null
+        _session.value = null
+    }
+
+    fun expireSession() {
+        signOut()
+        _authError.value = "Your session expired. Sign in again."
+    }
+
+    private fun authenticate(action: suspend () -> AuthResponse) {
+        if (_authBusy.value) return
+        _authBusy.value = true
+        _authError.value = null
         viewModelScope.launch {
-            val created = repository.createBooking(pro, date, time, note)
-            if (created != null) {
-                _bookings.update { current ->
-                    current.map { if (it.id == booking.id) created else it }
+            try {
+                val result = action()
+                preferences.edit().putString("token", result.token).apply()
+                _session.value = result
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                if (error is HttpException && error.code() in listOf(401, 404)) {
+                    preferences.edit().remove("token").apply()
                 }
-            }
-        }
-        return booking
-    }
-
-    fun cancelBooking(id: Long) {
-        _bookings.update { list -> list.filterNot { it.id == id } }
-    }
-
-    fun openChat(proId: String) {
-        _chats.update { chats ->
-            if (proId in chats) chats
-            else chats + (proId to listOf(message("Hello, how can I assist you?", fromMe = false)))
-        }
-    }
-
-    fun send(proId: String, text: String) {
-        val trimmed = text.trim()
-        if (trimmed.isEmpty()) return
-        append(proId, message(trimmed, fromMe = true))
-
-        viewModelScope.launch {
-            val sentMsg = repository.sendMessage(proId, trimmed)
-            if (sentMsg == null) {
-                delay(1400)
-                val theirCount = _chats.value[proId].orEmpty().count { !it.fromMe }
-                append(proId, message(replies[(theirCount - 1).coerceAtLeast(0) % replies.size], fromMe = false))
+                _authError.value = apiError(error)
+            } finally {
+                _authBusy.value = false
             }
         }
     }
+}
 
-    private fun append(proId: String, msg: ChatMessage) {
-        _chats.update { chats -> chats + (proId to (chats[proId].orEmpty() + msg)) }
+internal fun apiError(error: Exception): String = when (error) {
+    is HttpException -> try {
+        val body = JSONObject(error.response()?.errorBody()?.string().orEmpty())
+        body.optJSONArray("details")?.optJSONObject(0)?.optString("message")
+            ?.takeIf(String::isNotBlank)
+            ?: body.optString("error").ifBlank { "Request failed (HTTP ${error.code()})." }
+    } catch (_: Exception) {
+        "Request failed (HTTP ${error.code()})."
     }
-
-    private fun message(text: String, fromMe: Boolean) =
-        ChatMessage(nextId++, text, fromMe, LocalTime.now().format(clock))
+    is IOException -> "Couldn't connect to Home Services. Check that the API is running and try again."
+    else -> "Something went wrong. Please try again."
 }

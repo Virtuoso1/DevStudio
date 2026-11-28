@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.homeservices.app.data.Trade
+import com.homeservices.app.data.api.dto.UserDto
 import com.homeservices.app.navigation.Routes
 import com.homeservices.app.ui.theme.*
 
@@ -31,6 +32,8 @@ data class DrawerMenuItem(
 
 @Composable
 fun AppDrawer(
+    user: UserDto,
+    onSignOut: () -> Unit,
     currentRoute: String?,
     onNavigate: (String) -> Unit,
     onNavigateTrade: (Trade) -> Unit,
@@ -70,7 +73,7 @@ fun AppDrawer(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "KM",
+                            text = user.name.split(" ").mapNotNull { it.firstOrNull() }.take(2).joinToString("").uppercase(),
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -79,13 +82,13 @@ fun AppDrawer(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Kelvin Mwangi",
+                            text = user.name,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Ink
                         )
                         Text(
-                            text = "kelvin@example.com",
+                            text = user.email,
                             style = MaterialTheme.typography.bodySmall,
                             color = Muted
                         )
@@ -95,7 +98,7 @@ fun AppDrawer(
                             color = ApplianceOrangeSoft
                         ) {
                             Text(
-                                text = "Customer Account",
+                                text = user.role.lowercase().replaceFirstChar(Char::uppercase),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Brand,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -120,7 +123,7 @@ fun AppDrawer(
             val mainItems = listOf(
                 DrawerMenuItem(Routes.HOME, "Home Services", Icons.Rounded.Home),
                 DrawerMenuItem(Routes.BOOKINGS, "My Bookings", Icons.Rounded.CalendarMonth),
-                DrawerMenuItem(Routes.MESSAGES, "Messages & Support", Icons.Rounded.ChatBubble, badge = "2")
+                DrawerMenuItem(Routes.MESSAGES, "Messages", Icons.Rounded.ChatBubble)
             )
 
             mainItems.forEach { item ->
@@ -207,11 +210,9 @@ fun AppDrawer(
             )
 
             NavigationDrawerItem(
-                label = { Text("Sign Out", color = ElectricRed) },
+                label = { Text("Sign out", color = ElectricRed) },
                 selected = false,
-                onClick = {
-                    onCloseDrawer()
-                },
+                onClick = onSignOut,
                 icon = { Icon(Icons.AutoMirrored.Rounded.ExitToApp, contentDescription = null, tint = ElectricRed) },
                 shape = RoundedCornerShape(12.dp)
             )

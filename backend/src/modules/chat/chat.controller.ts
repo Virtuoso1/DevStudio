@@ -65,7 +65,7 @@ export async function listConversations(req: Request, res: Response) {
             ? { name: c.customer.name }
             : { name: c.provider.user.name, trade: c.provider.trade },
         lastMessage: last
-          ? { body: last.body, senderId: last.senderId, createdAt: last.createdAt }
+          ? { id: last.id, body: last.body, senderId: last.senderId, createdAt: last.createdAt }
           : null,
         sortKey: (last?.createdAt ?? c.createdAt).getTime(),
       };

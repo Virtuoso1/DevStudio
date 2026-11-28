@@ -23,6 +23,7 @@ const bookingSelect = {
   issueDescription: true,
   status: true,
   createdAt: true,
+  review: { select: { id: true } },
   provider: { select: { id: true, trade: true, user: { select: { name: true } } } },
   customer: { select: { id: true, name: true } },
 } satisfies Prisma.BookingSelect;
@@ -37,6 +38,7 @@ function toDto(b: BookingRow) {
     issueDescription: b.issueDescription,
     status: b.status,
     createdAt: b.createdAt,
+    review: b.review,
     provider: { id: b.provider.id, name: b.provider.user.name, trade: b.provider.trade },
     customer: b.customer,
   };
@@ -46,34 +48,41 @@ export async function createBooking(req: Request, res: Response) {
   const data = createSchema.parse(req.body);
 
   const date = new Date(`${data.date}T00:00:00.000Z`);
-  if (isNaN(date.getTime())) throw new AppError(400, "Invalid date");
+  if (isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== data.date) {
+    throw new AppError(400, "Invalid date");
+  }
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
   if (date < today) throw new AppError(400, "Date cannot be in the past");
 
-  const provider = await prisma.provider.findUnique({ where: { id: data.providerId } });
-  if (!provider) throw new AppError(404, "Provider not found");
-  if (provider.userId === req.user!.id) throw new AppError(400, "You cannot book yourself");
+  const booking = await prisma.$transaction(async (tx) => {
+    // Serialise slot checks for this provider until the booking is committed.
+    const [provider] = await tx.$queryRaw<{ userId: string }[]>`
+      SELECT "userId" FROM "Provider" WHERE "id" = ${data.providerId} FOR UPDATE
+    `;
+    if (!provider) throw new AppError(404, "Provider not found");
+    if (provider.userId === req.user!.id) throw new AppError(400, "You cannot book yourself");
 
-  const clash = await prisma.booking.findFirst({
-    where: {
-      providerId: data.providerId,
-      date,
-      timeSlot: data.timeSlot,
-      status: { in: ["PENDING", "CONFIRMED"] },
-    },
-  });
-  if (clash) throw new AppError(409, "That time slot is already booked");
+    const clash = await tx.booking.findFirst({
+      where: {
+        providerId: data.providerId,
+        date,
+        timeSlot: data.timeSlot,
+        status: { in: ["PENDING", "CONFIRMED"] },
+      },
+    });
+    if (clash) throw new AppError(409, "That time slot is already booked");
 
-  const booking = await prisma.booking.create({
-    data: {
-      customerId: req.user!.id,
-      providerId: data.providerId,
-      date,
-      timeSlot: data.timeSlot,
-      issueDescription: data.issueDescription,
-    },
-    select: bookingSelect,
+    return tx.booking.create({
+      data: {
+        customerId: req.user!.id,
+        providerId: data.providerId,
+        date,
+        timeSlot: data.timeSlot,
+        issueDescription: data.issueDescription,
+      },
+      select: bookingSelect,
+    });
   });
 
   res.status(201).json(toDto(booking));
@@ -127,12 +136,12 @@ export async function updateBookingStatus(req: Request, res: Response) {
     throw new AppError(400, `Cannot change status from ${booking.status} to ${status}`);
   }
 
-  const updated = await prisma.booking.update({
-    where: { id },
+  const updated = await prisma.booking.updateMany({
+    where: { id, status: booking.status },
     data: { status },
-    select: bookingSelect,
   });
-  res.json(toDto(updated));
+  if (!updated.count) throw new AppError(409, "Booking status changed. Refresh and try again.");
+  res.json(toDto(await prisma.booking.findUniqueOrThrow({ where: { id }, select: bookingSelect })));
 }
 
 export async function bookAgain(req: Request, res: Response) {

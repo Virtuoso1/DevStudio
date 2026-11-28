@@ -15,11 +15,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.homeservices.app.data.api.dto.UserDto
 import com.homeservices.app.ui.components.BackButton
 import com.homeservices.app.ui.theme.*
 
 @Composable
 fun ProfileScreen(
+    user: UserDto,
+    onSignOut: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -54,7 +57,7 @@ fun ProfileScreen(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "KM",
+                text = user.name.split(" ").mapNotNull { it.firstOrNull() }.take(2).joinToString("").uppercase(),
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 36.sp
@@ -62,8 +65,8 @@ fun ProfileScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "Kelvin Mwangi", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Text(text = "kelvin@example.com", style = MaterialTheme.typography.bodyMedium, color = Muted)
+        Text(text = user.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(text = user.email, style = MaterialTheme.typography.bodyMedium, color = Muted)
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -74,15 +77,16 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                ProfileInfoRow(icon = Icons.Rounded.Person, label = "Full Name", value = "Kelvin Mwangi")
+                ProfileInfoRow(icon = Icons.Rounded.Person, label = "Full Name", value = user.name)
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Outline)
-                ProfileInfoRow(icon = Icons.Rounded.Email, label = "Email Address", value = "kelvin@example.com")
+                ProfileInfoRow(icon = Icons.Rounded.Email, label = "Email Address", value = user.email)
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Outline)
-                ProfileInfoRow(icon = Icons.Rounded.Phone, label = "Phone Number", value = "+254 712 345 678")
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Outline)
-                ProfileInfoRow(icon = Icons.Rounded.LocationOn, label = "Location", value = "Nairobi, Kenya")
+                user.phone?.let { ProfileInfoRow(icon = Icons.Rounded.Phone, label = "Phone Number", value = it) }
+                ProfileInfoRow(icon = Icons.Rounded.Person, label = "Account type", value = user.role.lowercase().replaceFirstChar(Char::uppercase))
             }
         }
+        Spacer(Modifier.height(16.dp))
+        OutlinedButton(onClick = onSignOut, modifier = Modifier.fillMaxWidth()) { Text("Sign out") }
     }
 }
 

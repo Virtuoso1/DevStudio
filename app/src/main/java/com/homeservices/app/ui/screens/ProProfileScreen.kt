@@ -58,6 +58,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.homeservices.app.data.Booking
+import com.homeservices.app.data.api.dto.ReviewDto
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.homeservices.app.data.Pro
 import com.homeservices.app.data.formatRating
 import com.homeservices.app.data.pretty
@@ -76,7 +79,9 @@ fun ProProfileScreen(
     pro: Pro,
     onBack: () -> Unit,
     onMessage: () -> Unit,
-    onConfirmBooking: (LocalDate, String, String) -> Booking,
+    onConfirmBooking: suspend (LocalDate, String, String) -> Booking?,
+    canBook: Boolean,
+    reviews: List<ReviewDto>,
     onViewBookings: () -> Unit,
 ) {
     var showSheet by rememberSaveable { mutableStateOf(false) }
@@ -115,7 +120,7 @@ fun ProProfileScreen(
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             Stat(formatRating(pro.rating), "Rating")
                             Stat("${pro.years} yrs", "Experience")
-                            Stat("${pro.jobs}", "Jobs done")
+                            Stat("${pro.jobs}", "Reviews")
                         }
                     }
                 }
@@ -124,6 +129,15 @@ fun ProProfileScreen(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("About", style = MaterialTheme.typography.titleLarge)
                 Text(pro.bio, style = MaterialTheme.typography.bodyLarge, color = Ink.copy(alpha = 0.85f))
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Reviews", style = MaterialTheme.typography.titleLarge)
+                if (reviews.isEmpty()) Text("No reviews yet")
+                reviews.forEach { review ->
+                    Text("${review.customerName.orEmpty()} · ${review.rating}/5")
+                    review.comment?.takeIf { it.isNotBlank() }?.let { Text(it, color = Muted) }
+                }
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -146,7 +160,7 @@ fun ProProfileScreen(
             }
         }
 
-        Surface(color = Color.White, shadowElevation = 8.dp) {
+        if (canBook) Surface(color = Color.White, shadowElevation = 8.dp) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -205,7 +219,7 @@ private val TimeSlots = listOf("08:00", "09:30", "11:00", "13:00", "14:30", "16:
 private fun BookingSheet(
     pro: Pro,
     onDismiss: () -> Unit,
-    onConfirm: (LocalDate, String, String) -> Booking,
+    onConfirm: suspend (LocalDate, String, String) -> Booking?,
     onViewBookings: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -214,9 +228,12 @@ private fun BookingSheet(
     var time by remember { mutableStateOf<String?>(null) }
     var note by remember { mutableStateOf("") }
     var confirmed by remember { mutableStateOf<Booking?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!saving) onDismiss() },
         sheetState = sheetState,
         containerColor = Cream,
     ) {
@@ -276,7 +293,7 @@ private fun BookingSheet(
                     value = note,
                     onValueChange = { note = it },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Briefly describe the issue (optional)", color = Muted) },
+                    placeholder = { Text("Describe the issue (at least 5 characters)", color = Muted) },
                     trailingIcon = {
                         if (note.isNotEmpty()) {
                             IconButton(onClick = { note = "" }) {
@@ -294,9 +311,22 @@ private fun BookingSheet(
                     ),
                 )
 
+                if (failed) Text("Booking could not be saved. Check the error and try again.", color = MaterialTheme.colorScheme.error)
                 Button(
-                    onClick = { confirmed = onConfirm(date, time!!, note) },
-                    enabled = time != null,
+                    onClick = {
+                        val selected = time ?: return@Button
+                        saving = true
+                        failed = false
+                        scope.launch {
+                            try {
+                                confirmed = onConfirm(date, selected, note)
+                                failed = confirmed == null
+                            } finally {
+                                saving = false
+                            }
+                        }
+                    },
+                    enabled = !saving && time != null && note.trim().length >= 5,
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -306,7 +336,7 @@ private fun BookingSheet(
                         disabledContentColor = Muted,
                     ),
                 ) {
-                    Text(if (time == null) "Pick a time" else "Confirm booking", style = MaterialTheme.typography.labelLarge)
+                    Text(if (saving) "Saving…" else "Request booking", style = MaterialTheme.typography.labelLarge)
                 }
             }
         } else {
@@ -320,7 +350,7 @@ private fun BookingSheet(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Icon(Icons.Rounded.CheckCircle, null, tint = Success, modifier = Modifier.size(64.dp))
-                Text("Booking confirmed", style = MaterialTheme.typography.headlineSmall)
+                Text("Booking requested", style = MaterialTheme.typography.headlineSmall)
                 Text(
                     "${pro.name} · ${done.date.pretty()} at ${done.time}",
                     style = MaterialTheme.typography.bodyLarge,

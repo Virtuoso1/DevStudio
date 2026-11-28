@@ -2,168 +2,70 @@ package com.homeservices.app.data.repository
 
 import com.homeservices.app.data.*
 import com.homeservices.app.data.api.ApiService
-import com.homeservices.app.data.api.EngineApiService
-import com.homeservices.app.data.api.EngineNetworkModule
 import com.homeservices.app.data.api.NetworkModule
-import com.homeservices.app.data.api.dto.CreateBookingRequest
-import com.homeservices.app.data.api.dto.DiagnoseRequest
-import com.homeservices.app.data.api.dto.ProviderDto
-import com.homeservices.app.data.api.dto.SendMessageRequest
-import com.homeservices.app.data.api.dto.StartConversationRequest
+import com.homeservices.app.data.api.dto.*
+import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-class HomeServicesRepository(
-    private val api: ApiService = NetworkModule.apiService,
-    private val engineApi: EngineApiService = EngineNetworkModule.apiService,
-) {
-    private var authToken: String? = null
+class HomeServicesRepository(private val api: ApiService = NetworkModule.apiService) {
+    suspend fun login(email: String, password: String) = api.login(LoginRequest(email, password))
+    suspend fun register(request: RegisterRequest) = api.register(request)
+    suspend fun me(token: String) = api.me(bearer(token)).user
 
-    /**
-     * Calls the AI engine's /diagnose endpoint with a free-text phrase (English or Swahili).
-     * Recognized -> trade + estimated KES price range. Unknown (low confidence) or the engine
-     * being unreachable both tell the caller to fall back to the trade tiles.
-     */
-    suspend fun diagnose(text: String): DiagnoseResult {
-        return try {
-            val res = engineApi.diagnose(DiagnoseRequest(text))
-            val price = res.price
-            val trade = res.trade?.let(Trade::fromEngineString)
-            if (res.status == "ok" && trade != null && price != null) {
-                DiagnoseResult.Recognized(
-                    trade = trade,
-                    confidence = res.confidence,
-                    priceLow = price.low,
-                    priceMid = price.mid,
-                    priceHigh = price.high,
-                    currency = price.currency,
-                    note = res.note.orEmpty(),
-                )
-            } else {
-                DiagnoseResult.Unknown(res.confidence)
-            }
-        } catch (e: Exception) {
-            DiagnoseResult.Failed
-        }
+    suspend fun providers(trade: Trade? = null, query: String? = null): List<Pro> {
+        val providers = mutableListOf<Pro>()
+        var page = 1
+        do {
+            val response = api.listProviders(trade?.name, query, page++)
+            providers += response.items.map { it.toDomain() }
+        } while (response.items.isNotEmpty() && providers.size < response.total)
+        return providers.distinctBy { it.id }
     }
 
-    fun setAuthToken(token: String) {
-        authToken = "Bearer $token"
+    suspend fun provider(id: String) = api.getProvider(id).toDomain()
+    suspend fun reviews(id: String) = api.getReviews(id)
+    suspend fun bookAgain(token: String) = api.bookAgain(bearer(token)).map { it.toDomain() }
+    suspend fun bookings(token: String) = api.listBookings(bearer(token)).map { it.toDomain() }
+
+    suspend fun book(token: String, pro: Pro, date: LocalDate, time: String, note: String) =
+        api.createBooking(bearer(token), CreateBookingRequest(pro.id, date.toString(), time, note.trim())).toDomain()
+
+    suspend fun updateBooking(token: String, id: String, status: String) =
+        api.updateBooking(bearer(token), id, StatusRequest(status)).toDomain()
+
+    suspend fun review(token: String, id: String, rating: Int, comment: String) {
+        api.review(bearer(token), id, ReviewRequest(rating, comment.trim()))
     }
 
-    suspend fun getProviders(trade: Trade? = null, query: String? = null): List<Pro> {
-        return try {
-            val response = api.listProviders(trade = trade?.name, query = query)
-            response.items.map { it.toDomain() }
-        } catch (e: Exception) {
-            // Fallback to local sample data if backend server is not running
-            var list = ProData.all
-            if (trade != null) list = list.filter { it.trade == trade }
-            if (query != null && query.isNotBlank()) list = ProData.search(query)
-            list
-        }
+    suspend fun conversations(session: AuthResponse) = api.listConversations(bearer(session.token)).map {
+        Conversation(it.id, it.otherParty.name, it.otherParty.trade?.let(Trade::valueOf), it.lastMessage?.toDomain(session.user.id))
     }
 
-    suspend fun getBookings(): List<Booking> {
-        val token = authToken ?: return emptyList()
-        return try {
-            val list = api.listBookings(token)
-            list.map { b ->
-                val pro = Pro(
-                    id = b.provider.id,
-                    name = b.provider.name,
-                    trade = try { Trade.valueOf(b.provider.trade) } catch (_: Exception) { Trade.ELECTRICIAN },
-                    rating = 4.8,
-                    years = 5,
-                    jobs = 100,
-                    bio = "",
-                    credentials = emptyList()
-                )
-                Booking(
-                    id = b.id.hashCode().toLong(),
-                    pro = pro,
-                    date = try { LocalDate.parse(b.date) } catch (_: Exception) { LocalDate.now() },
-                    time = b.timeSlot,
-                    note = b.issueDescription
-                )
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
+    suspend fun openChat(token: String, providerId: String) =
+        api.startConversation(bearer(token), StartConversationRequest(providerId)).id
 
-    suspend fun createBooking(pro: Pro, date: LocalDate, time: String, note: String): Booking? {
-        val token = authToken ?: return null
-        return try {
-            val req = CreateBookingRequest(
-                providerId = pro.id,
-                date = date.toString(),
-                timeSlot = time,
-                issueDescription = note
-            )
-            val res = api.createBooking(token, req)
-            Booking(
-                id = res.id.hashCode().toLong(),
-                pro = pro,
-                date = date,
-                time = time,
-                note = note
-            )
-        } catch (e: Exception) {
-            null
-        }
-    }
+    suspend fun messages(session: AuthResponse, id: String) =
+        api.getMessages(bearer(session.token), id).map { it.toDomain(session.user.id) }
 
-    suspend fun fetchMessages(conversationId: String): List<ChatMessage> {
-        val token = authToken ?: return emptyList()
-        return try {
-            val list = api.getMessages(token, conversationId)
-            val formatter = DateTimeFormatter.ofPattern("HH:mm")
-            list.map { msg ->
-                ChatMessage(
-                    id = msg.id.hashCode().toLong(),
-                    text = msg.body,
-                    fromMe = true,
-                    time = try { LocalTime.parse(msg.createdAt.substring(11, 16)).format(formatter) } catch (_: Exception) { "12:00" }
-                )
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
+    suspend fun send(session: AuthResponse, id: String, text: String) =
+        api.sendMessage(bearer(session.token), id, SendMessageRequest(text)).toDomain(session.user.id)
 
-    suspend fun sendMessage(conversationId: String, text: String): ChatMessage? {
-        val token = authToken ?: return null
-        return try {
-            val res = api.sendMessage(token, conversationId, SendMessageRequest(text))
-            ChatMessage(
-                id = res.id.hashCode().toLong(),
-                text = res.body,
-                fromMe = true,
-                time = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
-            )
-        } catch (e: Exception) {
-            null
-        }
-    }
+    private fun bearer(token: String) = "Bearer $token"
 
-    private fun ProviderDto.toDomain(): Pro {
-        val parsedTrade = try {
-            Trade.valueOf(trade)
-        } catch (e: Exception) {
-            Trade.ELECTRICIAN
-        }
-        val creds = credentials?.split(",")?.map { it.trim() } ?: emptyList()
-        return Pro(
-            id = id,
-            name = name,
-            trade = parsedTrade,
-            rating = ratingAvg,
-            years = yearsExperience,
-            jobs = ratingCount,
-            bio = bio,
-            credentials = creds
-        )
-    }
+    private fun ProviderDto.toDomain() = Pro(
+        id, name, Trade.valueOf(trade), ratingAvg, yearsExperience, ratingCount, bio,
+        credentials.orEmpty().split(",").map(String::trim).filter(String::isNotEmpty),
+    )
+
+    private fun BookingDto.toDomain() = Booking(
+        id, provider.name, Trade.valueOf(provider.trade), customer.name,
+        LocalDate.parse(date), timeSlot, issueDescription, status, review != null,
+    )
+
+    private fun MessageDto.toDomain(userId: String) = ChatMessage(
+        id ?: createdAt, body, senderId == userId,
+        Instant.parse(createdAt).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm")),
+    )
 }
