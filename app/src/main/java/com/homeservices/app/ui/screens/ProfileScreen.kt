@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -15,14 +16,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.homeservices.app.data.api.dto.UserDto
 import com.homeservices.app.ui.components.BackButton
 import com.homeservices.app.ui.theme.*
 
 @Composable
 fun ProfileScreen(
+    user: UserDto?,
+    onLogout: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val name = user?.name ?: "User"
+    val email = user?.email ?: "user@example.com"
+    val phone = user?.phone ?: "+254 712 345 678"
+    val role = user?.role ?: "CUSTOMER"
+    val initials = name.split(" ").mapNotNull { it.firstOrNull() }.take(2).joinToString("").uppercase()
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -54,7 +64,7 @@ fun ProfileScreen(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "KM",
+                text = initials.ifEmpty { "U" },
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 36.sp
@@ -62,8 +72,8 @@ fun ProfileScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "Kelvin Mwangi", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Text(text = "kelvin@example.com", style = MaterialTheme.typography.bodyMedium, color = Muted)
+        Text(text = name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(text = email, style = MaterialTheme.typography.bodyMedium, color = Muted)
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -74,14 +84,29 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                ProfileInfoRow(icon = Icons.Rounded.Person, label = "Full Name", value = "Kelvin Mwangi")
+                ProfileInfoRow(icon = Icons.Rounded.Person, label = "Full Name", value = name)
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Outline)
-                ProfileInfoRow(icon = Icons.Rounded.Email, label = "Email Address", value = "kelvin@example.com")
+                ProfileInfoRow(icon = Icons.Rounded.Email, label = "Email Address", value = email)
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Outline)
-                ProfileInfoRow(icon = Icons.Rounded.Phone, label = "Phone Number", value = "+254 712 345 678")
+                ProfileInfoRow(icon = Icons.Rounded.Phone, label = "Phone Number", value = phone)
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Outline)
-                ProfileInfoRow(icon = Icons.Rounded.LocationOn, label = "Location", value = "Nairobi, Kenya")
+                ProfileInfoRow(icon = Icons.Rounded.Badge, label = "Account Role", value = role)
             }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        OutlinedButton(
+            onClick = onLogout,
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+        ) {
+            Icon(Icons.AutoMirrored.Rounded.Logout, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = "Sign Out", fontWeight = FontWeight.Bold)
         }
     }
 }

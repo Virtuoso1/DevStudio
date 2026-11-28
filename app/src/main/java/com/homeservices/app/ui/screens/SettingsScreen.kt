@@ -10,29 +10,25 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.homeservices.app.ui.components.BackButton
-import com.homeservices.app.ui.theme.Cream
-import com.homeservices.app.ui.theme.Ink
-import com.homeservices.app.ui.theme.Muted
-import com.homeservices.app.ui.theme.Outline
 
 @Composable
 fun SettingsScreen(
+    darkMode: Boolean,
+    onDarkModeChanged: (Boolean) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var notificationsEnabled by remember { mutableStateOf(true) }
     var locationServices by remember { mutableStateOf(true) }
-    var darkMode by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(Cream),
+            .background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -47,7 +43,7 @@ fun SettingsScreen(
                     text = "App Settings",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Ink
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
         }
@@ -56,7 +52,7 @@ fun SettingsScreen(
             Text(
                 text = "Preferences",
                 style = MaterialTheme.typography.titleMedium,
-                color = Muted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
@@ -64,7 +60,7 @@ fun SettingsScreen(
         item {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 1.dp
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -75,7 +71,7 @@ fun SettingsScreen(
                         checked = notificationsEnabled,
                         onCheckedChange = { notificationsEnabled = it }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Outline)
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outline)
                     SettingToggleRow(
                         icon = Icons.Rounded.LocationOn,
                         title = "Location Services",
@@ -83,13 +79,13 @@ fun SettingsScreen(
                         checked = locationServices,
                         onCheckedChange = { locationServices = it }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Outline)
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outline)
                     SettingToggleRow(
                         icon = Icons.Rounded.DarkMode,
                         title = "Dark Theme",
                         subtitle = "Enable dark mode visual theme",
                         checked = darkMode,
-                        onCheckedChange = { darkMode = it }
+                        onCheckedChange = onDarkModeChanged
                     )
                 }
             }
@@ -99,7 +95,7 @@ fun SettingsScreen(
             Text(
                 text = "Account & Support",
                 style = MaterialTheme.typography.titleMedium,
-                color = Muted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
@@ -107,7 +103,7 @@ fun SettingsScreen(
         item {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 1.dp
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -116,13 +112,13 @@ fun SettingsScreen(
                         title = "Privacy & Security",
                         subtitle = "Manage password and account privacy"
                     )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Outline)
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outline)
                     SettingItemRow(
                         icon = Icons.Rounded.Help,
                         title = "Help & Support Center",
                         subtitle = "FAQs and customer care contact"
                     )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Outline)
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outline)
                     SettingItemRow(
                         icon = Icons.Rounded.Info,
                         title = "About HomeServices",
@@ -146,11 +142,11 @@ private fun SettingToggleRow(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = Ink, modifier = Modifier.size(24.dp))
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Muted)
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
@@ -166,12 +162,12 @@ private fun SettingItemRow(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = Ink, modifier = Modifier.size(24.dp))
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Muted)
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Muted)
+        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

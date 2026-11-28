@@ -2,6 +2,7 @@ package com.homeservices.app.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -39,6 +40,21 @@ private val LightColors = lightColorScheme(
     error = ElectricRed,
 )
 
+private val DarkColors = darkColorScheme(
+    primary = Brand,
+    onPrimary = Color.White,
+    secondary = Color(0xFFE2E2E2),
+    background = Color(0xFF121212),
+    onBackground = Color(0xFFE2E2E2),
+    surface = Color(0xFF1E1E1E),
+    onSurface = Color(0xFFE2E2E2),
+    surfaceVariant = Color(0xFF2C2C2C),
+    onSurfaceVariant = Color(0xFFB0B0B0),
+    outline = Color(0xFF333333),
+    outlineVariant = Color(0xFF333333),
+    error = ElectricRed,
+)
+
 val AppTypography = Typography(
     headlineLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 30.sp, lineHeight = 36.sp, letterSpacing = (-0.5).sp),
     headlineMedium = TextStyle(fontWeight = FontWeight.Bold, fontSize = 24.sp, lineHeight = 30.sp, letterSpacing = (-0.3).sp),
@@ -53,6 +69,10 @@ val AppTypography = Typography(
 )
 
 @Composable
-fun HomeServicesTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = LightColors, typography = AppTypography, content = content)
+fun HomeServicesTheme(
+    darkTheme: Boolean = false,
+    content: @Composable () -> Unit
+) {
+    val colorScheme = if (darkTheme) DarkColors else LightColors
+    MaterialTheme(colorScheme = colorScheme, typography = AppTypography, content = content)
 }

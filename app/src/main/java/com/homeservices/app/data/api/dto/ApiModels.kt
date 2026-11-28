@@ -99,11 +99,32 @@ data class DiagnoseResponse(
 
 // --- Auth ---
 
+data class UserDto(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("phone") val phone: String?,
+    @SerializedName("role") val role: String
+)
+
 data class LoginRequest(
     @SerializedName("email") val email: String,
     @SerializedName("password") val password: String
 )
 
+data class RegisterRequest(
+    @SerializedName("name") val name: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("phone") val phone: String? = null,
+    @SerializedName("password") val password: String,
+    @SerializedName("role") val role: String = "CUSTOMER",
+    @SerializedName("trade") val trade: String? = null,
+    @SerializedName("bio") val bio: String? = null,
+    @SerializedName("yearsExperience") val yearsExperience: Int? = null,
+    @SerializedName("credentials") val credentials: String? = null
+)
+
 data class AuthResponse(
-    @SerializedName("token") val token: String
+    @SerializedName("token") val token: String,
+    @SerializedName("user") val user: UserDto?
 )

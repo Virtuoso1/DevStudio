@@ -5,9 +5,12 @@ import com.homeservices.app.data.api.ApiService
 import com.homeservices.app.data.api.EngineApiService
 import com.homeservices.app.data.api.EngineNetworkModule
 import com.homeservices.app.data.api.NetworkModule
+import com.homeservices.app.data.api.dto.AuthResponse
 import com.homeservices.app.data.api.dto.CreateBookingRequest
 import com.homeservices.app.data.api.dto.DiagnoseRequest
+import com.homeservices.app.data.api.dto.LoginRequest
 import com.homeservices.app.data.api.dto.ProviderDto
+import com.homeservices.app.data.api.dto.RegisterRequest
 import com.homeservices.app.data.api.dto.SendMessageRequest
 import com.homeservices.app.data.api.dto.StartConversationRequest
 import java.time.LocalDate
@@ -19,6 +22,18 @@ class HomeServicesRepository(
     private val engineApi: EngineApiService = EngineNetworkModule.apiService,
 ) {
     private var authToken: String? = null
+
+    suspend fun login(request: LoginRequest): AuthResponse {
+        val res = api.login(request)
+        setAuthToken(res.token)
+        return res
+    }
+
+    suspend fun register(request: RegisterRequest): AuthResponse {
+        val res = api.register(request)
+        setAuthToken(res.token)
+        return res
+    }
 
     /**
      * Calls the AI engine's /diagnose endpoint with a free-text phrase (English or Swahili).

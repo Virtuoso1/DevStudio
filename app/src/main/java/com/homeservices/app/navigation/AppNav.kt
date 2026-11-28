@@ -32,10 +32,9 @@ import com.homeservices.app.ui.screens.*
 import com.homeservices.app.ui.theme.*
 import kotlinx.coroutines.launch
 
-/** Placeholder until sign-in exists. */
-private const val USER_NAME = "Kelvin"
-
 object Routes {
+    const val LOGIN = "login"
+    const val REGISTER = "register"
     const val HOME = "home"
     const val BOOKINGS = "bookings"
     const val MESSAGES = "messages"
@@ -57,10 +56,17 @@ private val Tabs = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeServicesApp(vm: AppViewModel = viewModel()) {
+    val isAuthenticated by vm.isAuthenticated.collectAsStateWithLifecycle()
+    val currentUser by vm.currentUser.collectAsStateWithLifecycle()
+    val authError by vm.authError.collectAsStateWithLifecycle()
+    val authLoading by vm.authLoading.collectAsStateWithLifecycle()
+    val darkMode by vm.darkMode.collectAsStateWithLifecycle()
+
     val nav = rememberNavController()
+
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
-    val showBar = Tabs.any { it.route == route }
+    val showBar = isAuthenticated && Tabs.any { it.route == route }
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -82,21 +88,23 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
         drawerState = drawerState,
         gesturesEnabled = showBar,
         drawerContent = {
-            AppDrawer(
-                currentRoute = route,
-                onNavigate = { target ->
-                    nav.navigate(target) {
-                        popUpTo(Routes.HOME) { saveState = true }
-                        launchSingleTop = true
+            if (isAuthenticated) {
+                AppDrawer(
+                    currentRoute = route,
+                    onNavigate = { target ->
+                        nav.navigate(target) {
+                            popUpTo(Routes.HOME) { saveState = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateTrade = { trade ->
+                        nav.navigate("trade/${trade.name}")
+                    },
+                    onCloseDrawer = {
+                        scope.launch { drawerState.close() }
                     }
-                },
-                onNavigateTrade = { trade ->
-                    nav.navigate("trade/${trade.name}")
-                },
-                onCloseDrawer = {
-                    scope.launch { drawerState.close() }
-                }
-            )
+                )
+            }
         }
     ) {
         Scaffold(
@@ -154,14 +162,44 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
         ) { inner ->
             NavHost(
                 navController = nav,
-                startDestination = Routes.HOME,
+                startDestination = if (isAuthenticated) Routes.HOME else Routes.LOGIN,
                 modifier = Modifier
                     .padding(inner)
                     .consumeWindowInsets(inner),
             ) {
+                composable(Routes.LOGIN) {
+                    LoginScreen(
+                        onLogin = { name, email, pass ->
+                            vm.login(name, email, pass) {
+                                nav.navigate(Routes.HOME) {
+                                    popUpTo(Routes.LOGIN) { inclusive = true }
+                                }
+                            }
+                        },
+                        onNavigateToRegister = { nav.navigate(Routes.REGISTER) { launchSingleTop = true } },
+                        isLoading = authLoading,
+                        errorMessage = authError
+                    )
+                }
+
+                composable(Routes.REGISTER) {
+                    RegisterScreen(
+                        onRegister = { name, email, phone, pass, role, trade, bio, yearsExp ->
+                            vm.register(name, email, phone, pass, role, trade, bio, yearsExp) {
+                                nav.navigate(Routes.HOME) {
+                                    popUpTo(Routes.REGISTER) { inclusive = true }
+                                }
+                            }
+                        },
+                        onNavigateToLogin = { nav.popBackStack() },
+                        isLoading = authLoading,
+                        errorMessage = authError
+                    )
+                }
+
                 composable(Routes.HOME) {
                     HomeScreen(
-                        userName = USER_NAME,
+                        userName = currentUser?.name ?: "User",
                         diagnosing = diagnosing,
                         diagnosis = diagnosis,
                         onSearchSubmit = vm::diagnose,
@@ -203,7 +241,7 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
                             onConfirmBooking = { date, time, note -> vm.book(pro, date, time, note) },
                             onViewBookings = {
                                 nav.navigate(Routes.BOOKINGS) {
-                                    popUpTo(Routes.HOME)
+                                    popUpTo(Routes.HOME) { saveState = true }
                                     launchSingleTop = true
                                 }
                             },
@@ -244,12 +282,28 @@ fun HomeServicesApp(vm: AppViewModel = viewModel()) {
 
                 composable(Routes.SETTINGS) {
                     SettingsScreen(
+                        darkMode = darkMode,
+                        onDarkModeChanged = vm::setDarkMode,
                         onBack = { nav.popBackStack() }
                     )
                 }
 
                 composable(Routes.PROFILE) {
                     ProfileScreen(
+                        user = currentUser,
+                        onLogout = {
+                            vm.logout()
+                            try {
+                                nav.navigate(Routes.LOGIN) {
+                                    popUpTo(nav.graph.startDestinationId) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            } catch (_: Exception) {
+                                nav.navigate(Routes.LOGIN) {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            }
+                        },
                         onBack = { nav.popBackStack() }
                     )
                 }
